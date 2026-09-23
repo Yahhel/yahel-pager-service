@@ -39,7 +39,6 @@
     "test:e2e": "Test=true jest --config ./test/jest-e2e.json --runInBand --force-exit"
   },
   "dependencies": {
-    "@faker-js/faker": "^9.4.0",
     "@nestjs/common": "^11.0.4",
     "@nestjs/config": "^4.0.0",
     "@nestjs/core": "^11.0.1",
@@ -60,7 +59,7 @@
     "jsencrypt": "^3.3.2",
     "jszip": "^3.10.1",
     "mongoose": "^8.9.5",
-    "node-cron": "^3.0.3",
+    "node-cron": "^4.6.0",
     "nodejs-jsencrypt": "^3.0.0-rc.1",
     "phone": "^3.1.57",
     "prettier": "^3.4.2",

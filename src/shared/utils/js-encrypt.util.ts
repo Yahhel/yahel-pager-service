@@ -1,8 +1,8 @@
-import { faker } from '@faker-js/faker';
+import { randomUUID } from 'crypto';
 
 export const generateRsaKeyPair = async () => {
-  let publicKey = faker.string.uuid();
-  let privateKey = faker.string.uuid();
+  let publicKey = randomUUID();
+  let privateKey = randomUUID();
 
   if (
     process.env.KEY_GENERATOR === 'true' ||

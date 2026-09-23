@@ -28,32 +28,18 @@ export const configs = () => ({
     domain: process.env.MAIL_GUN_DOMAIN,
     defaultEmailReceiver: process.env.MAIL_GUN_DEFAULT_EMAIL,
     defaultEmailFrom: {
-      hello: 'Ope From AA <hello@aa.com>',
-      support: 'Ope From AA <support@aa.com>',
-      engineering: 'Ope From AA <engineering@aa.com>',
-      marketing: 'Ope From AA <marketing@aa.com>',
-      finance: 'Ope From AA <finance@aa.com>',
+      hello: 'Ope From Yahhel <hello@yahhel.com>',
+      support: 'Ope From Yahhel <support@yahhel.com>',
+      engineering: 'Ope From Yahhel <engineering@yahhel.com>',
+      marketing: 'Ope From Yahhel <marketing@yahhel.com>',
+      finance: 'Ope From Yahhel <finance@yahhel.com>',
     },
     defaultEmailTo: {
-      support: 'support@aa.com',
+      support: 'support@yahhel.com',
     },
     templates: {
       termsAndConditions: 'trace-updated-terms-and-conditions',
       traceTradeTermination: 'trace-trade-termination',
-    },
-    templateConfigs: {
-      'trace-updated-terms-and-conditions': {
-        subject: 'Terms And Conditions Updated For Trade',
-        sender: 'Ope From AA <hello@aa.com>',
-        title: 'Trace Updated Terms and Conditions',
-        description: 'Updated Terms and Conditions Email',
-      },
-      'trace-trade-termination': {
-        subject: 'Trade Termination Alert',
-        sender: 'Ope From AA <hello@aa.com>',
-        title: 'Trace Trade Termination',
-        description: 'Email to notify trade termination',
-      }
     },
   }
 });

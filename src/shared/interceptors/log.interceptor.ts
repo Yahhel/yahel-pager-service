@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import { Observable, throwError } from 'rxjs';
 import { tap, catchError } from 'rxjs/operators';
-import { faker } from '@faker-js/faker';
+import { randomUUID } from 'crypto';
 import { getIpAddress } from '../utils';
 
 @Injectable()
@@ -19,7 +19,7 @@ export class LogInterceptor implements NestInterceptor {
     const ctx = context.switchToHttp();
     const req = ctx.getRequest();
     const res = ctx.getResponse();
-    const traceId = faker.string.uuid();
+    const traceId = randomUUID();
     req.traceId = req.traceId || traceId;
     req.userIpAddress = getIpAddress(req);
 

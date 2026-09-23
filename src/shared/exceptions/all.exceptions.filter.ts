@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import { HttpAdapterHost } from '@nestjs/core';
 import { ApiReq, LogLevel } from '../interfaces';
-import { faker } from '@faker-js/faker';
+import { randomUUID } from 'crypto';
 import { getIpAddress } from '../utils';
 
 @Catch()
@@ -53,7 +53,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
         ? exception.getStatus()
         : HttpStatus.SERVICE_UNAVAILABLE;
 
-    req.traceId = req.traceId || faker.string.uuid();
+    req.traceId = req.traceId || randomUUID();
     req.userIpAddress = getIpAddress(req);
 
     const msg =

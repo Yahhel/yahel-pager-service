@@ -1,7 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
 import { Model } from 'mongoose';
 import * as dateFns from 'date-fns';
-import { faker } from '@faker-js/faker';
+import { randomUUID } from 'crypto';
 import { UAParser } from 'ua-parser-js';
 import {
   Country,
@@ -49,7 +49,7 @@ export const getDateRangeQuery = (
 };
 
 export const getApiKey = async (code, type) => {
-  const apiKey = faker.string.uuid();
+  const apiKey = randomUUID();
   await redisSet(`${type}:${apiKey}`, {
     code,
   });
@@ -355,7 +355,7 @@ export const addLeadingZero = (value) => {
 };
 
 export const generateTransactionReference = () => {
-  const uuid = faker.string.uuid();
+  const uuid = randomUUID();
   return `DFS-TRC-${uuid}`;
 };
 

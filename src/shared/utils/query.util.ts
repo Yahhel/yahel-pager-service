@@ -76,14 +76,6 @@ export const buildQuery = (
       case 'productLowStock':
         filters.push({ quantity: { $lte: +value[0] } });
         break;
-      case 'excludeAAProducts': {
-        if (value[0] === '1') {
-          filters.push({
-            user: { $nin: process.env.AA_TRADE_AGENT_ACCOUNT_ID },
-          });
-        }
-        break;
-      }
       case 'productSearch':
         searchFields = [
           { key: 'name' },

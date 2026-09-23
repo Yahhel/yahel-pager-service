@@ -16,12 +16,6 @@ export enum GroupBy {
   UPDATED_BY = 'UPDATED_BY',
   PRODUCT_ID = 'PRODUCT_ID',
   PRODUCT_USER = 'PRODUCT_USER',
-  TRADE_PRODUCT_ID = 'TRADE_PRODUCT_ID',
-  TRADE_STATE = 'TRADE_STATE',
-  TRADE_CITY = 'TRADE_CITY',
-  TRADE_BUYER = 'TRADE_BUYER',
-  TRADE_SELLER = 'TRADE_SELLER',
-  SELLER_TYPE = 'SELLER_TYPE',
 }
 
 export const byValueTypes = [...new Set(Object.values(ByValueType))];
@@ -99,48 +93,6 @@ export const getMetricsGroupId = (req, dateField = 'createdAt') => {
           groupByUniqueProjection = {
             ...groupByUniqueProjection,
             user: { $first: '$user' },
-          };
-          break;
-        case GroupBy.TRADE_PRODUCT_ID:
-          groupId.product = '$product';
-          groupByUniqueProjection = {
-            ...groupByUniqueProjection,
-            productId: { $first: '$product' },
-          };
-          break;
-        case GroupBy.TRADE_STATE:
-          groupId.state = '$state';
-          groupByUniqueProjection = {
-            ...groupByUniqueProjection,
-            state: { $first: '$state' },
-          };
-          break;
-        case GroupBy.TRADE_CITY:
-          groupId.city = '$city';
-          groupByUniqueProjection = {
-            ...groupByUniqueProjection,
-            state: { $first: '$city' },
-          };
-          break;
-        case GroupBy.TRADE_SELLER:
-          groupId.seller = '$seller';
-          groupByUniqueProjection = {
-            ...groupByUniqueProjection,
-            seller: { $first: '$seller' },
-          };
-          break;
-        case GroupBy.TRADE_BUYER:
-          groupId.buyer = '$buyer';
-          groupByUniqueProjection = {
-            ...groupByUniqueProjection,
-            buyer: { $first: '$buyer' },
-          };
-          break;
-        case GroupBy.SELLER_TYPE:
-          groupId.type = '$type';
-          groupByUniqueProjection = {
-            ...groupByUniqueProjection,
-            type: { $first: '$type' },
           };
           break;
       }

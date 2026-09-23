@@ -22,21 +22,3 @@ export type CreateAuditPayload = {
   previousData?: any;
   currentData?: any;
 };
-
-export enum ActionType {
-  QUANTITY = 'QUANTITY',
-  PRICING = 'PRICING',
-  SHIPPING = 'SHIPPING',
-  PAYMENT_TERMS = 'PAYMENT_TERMS',
-  TERMS_AND_CONDITIONS = 'TERMS_AND_CONDITIONS',
-  ACCEPTANCE = 'ACCEPTANCE',
-}
-
-export enum ModelEntityType {
-  USER = 'USER',
-  TRADE = 'TRADE',
-  PRODUCT = 'PRODUCT',
-}
-
-export const ModelEntityTypes = Object.values(ModelEntityType);
-export const ActionTypes = Object.values(ActionType);

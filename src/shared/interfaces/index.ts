@@ -1,7 +1,6 @@
 // Interfaces Export
 export * from './req.type';
 export * from './config.type';
-export * from './email.type';
 export * from './log.level';
 export * from './access.type';
 export * from './config-template.enum';

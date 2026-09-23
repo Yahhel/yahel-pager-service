@@ -1,24 +1,22 @@
-import { faker } from '@faker-js/faker';
-
 const redactStr = '__REDACTED__';
 
-const redactedRecords = {
-  name: faker.company.name(),
-  logo: faker.image.url(),
-  description: faker.company.catchPhraseDescriptor(),
-  website: faker.internet.url(),
-  phone: faker.phone.number(),
-  address: faker.location.city(),
-  postalCode: faker.address.zipCode(),
-  socialUsername: faker.internet.userName(),
-  firstName: faker.name.firstName(),
-  lastName: faker.name.lastName(),
-  username: faker.internet.userName(),
-  beneficiaryAccountNo: faker.number.int({ min: 1000000000, max: 9999999999 }),
-  beneficiaryName: faker.finance.accountName(),
-  password: '',
-  accessToken: '',
-};
+const redactedKeys = new Set([
+  'name',
+  'logo',
+  'description',
+  'website',
+  'phone',
+  'address',
+  'postalCode',
+  'socialUsername',
+  'firstName',
+  'lastName',
+  'username',
+  'beneficiaryAccountNo',
+  'beneficiaryName',
+  'password',
+  'accessToken',
+]);
 
 export const redactRecord = (data) => {
   const redactObj = (obj) => {
@@ -30,8 +28,8 @@ export const redactRecord = (data) => {
         if (Array.isArray(obj[key])) {
           obj[key] = obj[key].map((r) => redactObj(r));
         }
-        if (![null, undefined].includes(redactedRecords[key])) {
-          obj[key] = redactedRecords[key] + redactStr;
+        if (redactedKeys.has(key)) {
+          obj[key] = redactStr;
         }
       });
     }

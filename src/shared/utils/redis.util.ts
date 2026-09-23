@@ -5,7 +5,7 @@ import { configs } from '../configs';
 export let redisClient: any = null;
 export let isRedisConnected: any = null;
 
-const DEFAULT_KEY = 'TRACE:';
+const DEFAULT_KEY = 'PAGER:';
 
 export const startRedis = async () => {
   redisClient = createClient({
