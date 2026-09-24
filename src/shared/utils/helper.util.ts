@@ -408,3 +408,14 @@ export const isTestEnv = () =>
   ['stage', 'development', 'local'].includes(
     process.env.NODE_ENV?.trim()?.toLowerCase(),
   );
+
+export const runNextTick = (action: () => Promise<any>) =>
+  setImmediate(() =>
+    action().catch((e) =>
+      global.dataLogsService?.log(
+        'runNextTick',
+        { source: 'runNextTick', message: e.message, stack: e.stack },
+        LogLevel.ERROR,
+      ),
+    ),
+  );

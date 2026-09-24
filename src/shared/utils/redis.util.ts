@@ -7,6 +7,9 @@ export let isRedisConnected: any = null;
 
 const DEFAULT_KEY = 'PAGER:';
 
+export const redisKey = (key: string) =>
+  `${process.env.NODE_ENV}:${DEFAULT_KEY}${key}`;
+
 export const startRedis = async () => {
   redisClient = createClient({
     ...configs().redisConfig,
@@ -43,7 +46,7 @@ export const redisSet = async (
   value: Record<string, any>,
   options?: Record<string, any>,
 ) => {
-  key = process.env.NODE_ENV + ':' + DEFAULT_KEY + key;
+  key = redisKey(key);
   return isRedisConnected
     ? await promisifySilent(
         redisClient.set(key, JSON.stringify(value), options),
@@ -53,7 +56,7 @@ export const redisSet = async (
 };
 
 export const redisGet = async (key: string) => {
-  key = process.env.NODE_ENV + ':' + DEFAULT_KEY + key;
+  key = redisKey(key);
   const record: any = isRedisConnected
     ? await promisifySilent(redisClient.get(key), key)
     : null;
@@ -62,6 +65,6 @@ export const redisGet = async (key: string) => {
 };
 
 export const redisDel = async (key: string) => {
-  key = process.env.NODE_ENV + ':' + DEFAULT_KEY + key;
+  key = redisKey(key);
   isRedisConnected && (await promisifySilent(redisClient.del(key), key));
 };

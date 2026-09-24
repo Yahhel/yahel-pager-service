@@ -2,18 +2,21 @@ import { Module } from '@nestjs/common';
 import { DBModule } from '../schemas';
 import { NestFactory } from '@nestjs/core';
 import { ProdProductSeeder } from './seeds/production/prod.product.seeder';
+import { ProdAdminSeeder } from './seeds/production/prod.admin.seeder';
 
 @Module({
   imports: [DBModule],
   controllers: [],
   providers: [
     ProdProductSeeder,
+    ProdAdminSeeder,
   ],
   exports: [],
 })
 export class SeederModule {
   constructor(
     private readonly prodProductSeeder: ProdProductSeeder,
+    private readonly adminSeeder: ProdAdminSeeder,
   ) {}
 
   async runSeeders() {
@@ -28,6 +31,7 @@ export class SeederModule {
 
     // Register each seed function here
     await this.prodProductSeeder.seed();
+    await this.adminSeeder.seed();
   }
 }
 

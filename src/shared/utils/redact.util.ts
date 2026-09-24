@@ -15,24 +15,27 @@ const redactedKeys = new Set([
   'beneficiaryAccountNo',
   'beneficiaryName',
   'password',
+  'oldPassword',
+  'newPassword',
   'accessToken',
+  'refreshToken',
+  'tempToken',
+  'token',
+  'twoFactorToken',
+  'twoFactorSecret',
+  'backupCodes',
+  'secret',
+  'manualEntryKey',
+  'qrCodeUrl',
 ]);
 
 export const redactRecord = (data) => {
   const redactObj = (obj) => {
-    if (typeof obj !== 'object') return obj;
-    if (Array.isArray(obj)) {
-      obj = obj.map((r) => redactObj(r));
-    } else {
-      Object.keys(obj).forEach((key) => {
-        if (Array.isArray(obj[key])) {
-          obj[key] = obj[key].map((r) => redactObj(r));
-        }
-        if (redactedKeys.has(key)) {
-          obj[key] = redactStr;
-        }
-      });
-    }
+    if (obj === null || typeof obj !== 'object') return obj;
+    if (Array.isArray(obj)) return obj.map((r) => redactObj(r));
+    Object.keys(obj).forEach((key) => {
+      obj[key] = redactedKeys.has(key) ? redactStr : redactObj(obj[key]);
+    });
     return obj;
   };
   try {

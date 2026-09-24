@@ -9,6 +9,7 @@ import { HttpAdapterHost } from '@nestjs/core';
 import { ApiReq, LogLevel } from '../interfaces';
 import { randomUUID } from 'crypto';
 import { getIpAddress } from '../utils';
+import { AUDIT_FINISHER_KEY } from '../interceptors/audit-log.recorder';
 
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
@@ -81,6 +82,12 @@ export class AllExceptionsFilter implements ExceptionFilter {
         exception as any
       )?.response?.validationErrors;
     }
+
+    if ((exception as any)?.response?.restrictions) {
+      responseBody['restrictions'] = (exception as any).response.restrictions;
+    }
+
+    req[AUDIT_FINISHER_KEY]?.(false, httpStatus, responseBody);
 
     global.dataLogsService?.reqResLog(
       req.traceId,

@@ -9,3 +9,6 @@ export * from './redis.util';
 export * from './js-encrypt.util';
 export * from './mongo.util';
 export * from './error-handler.util';
+export * from './bcrypt.util';
+export * from './mailtrap.util';
+export * from './crypto.util';

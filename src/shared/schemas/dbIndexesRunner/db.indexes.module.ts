@@ -1,10 +1,12 @@
 import { Module, Inject } from '@nestjs/common';
 import {
-  // Product,
-  // ProductDocument,
+  AuditLog,
+  AuditLogModel,
   DataLog,
   DataLogDocument,
   DBModule,
+  User,
+  UserModel,
 } from '../index';
 import { Model } from 'mongoose';
 
@@ -18,11 +20,17 @@ export class DbIndexesModule {
   constructor(
     @Inject(DataLog.name)
     private readonly dataLogModel: Model<DataLogDocument>,
+    @Inject(User.name)
+    private readonly userModel: UserModel,
+    @Inject(AuditLog.name)
+    private readonly auditLogModel: AuditLogModel,
   ) {}
 
   async runIndexes() {
     await Promise.all([
       this.dataLogModel.syncIndexes(),
+      this.userModel.syncIndexes(),
+      this.auditLogModel.syncIndexes(),
     ] as any);
   }
 }

@@ -36,7 +36,8 @@ export const buildQuery = (
 
   for (const key in query) {
     let searchFields = [];
-    if (!query.hasOwnProperty(key)) continue;
+    // Express 5 query objects have a null prototype
+    if (!Object.prototype.hasOwnProperty.call(query, key)) continue;
 
     const v = decodeURIComponent(query[key] || '');
     if (!v) continue;
@@ -116,11 +117,62 @@ export const buildQuery = (
         filters.push({ 'data.ipAddress': { $in: value } });
         break;
 
+      /** All User Queries */
+      case 'userSearch':
+        searchFields = [
+          { key: 'firstName' },
+          { key: 'lastName' },
+          { key: 'email' },
+          { key: 'phone' },
+        ];
+        filters.push({ $or: regexSearches(searchFields, value) });
+        break;
+      case 'userRoles':
+        filters.push({ roles: { $in: value } });
+        break;
+      case 'userStatuses':
+        filters.push({ status: { $in: value } });
+        break;
+      case 'userEmailVerified':
+        filters.push({ emailVerified: value[0] === '1' });
+        break;
+
+      /** All Audit Log Queries */
+      case 'auditSearch':
+        searchFields = [{ key: 'requestUrl' }, { key: 'description' }];
+        filters.push({ $or: regexSearches(searchFields, value) });
+        break;
+      case 'auditActionBy':
+        filters.push({ actionBy: { $in: value } });
+        break;
+      case 'auditTypes':
+        filters.push({ actionType: { $in: value } });
+        break;
+      case 'auditSeverities':
+        filters.push({ severity: { $in: value } });
+        break;
+      case 'auditModelTypes':
+        filters.push({ requestModelType: { $in: value } });
+        break;
+      case 'auditMethods':
+        filters.push({
+          requestMethod: { $in: value.map((v) => v.toUpperCase()) },
+        });
+        break;
+      case 'auditStatusCodes':
+        filters.push({ responseStatus: { $in: value.map((v) => +v) } });
+        break;
+      case 'auditSuccessful':
+        filters.push({ actionSuccessful: value[0] === '1' });
+        break;
+
       /** All Date range use case Queries for all schema models */
       case 'dateRange':
       case 'metricDateRange':
       case 'productDateRange':
       case 'dataLogDateRange':
+      case 'userDateRange':
+      case 'auditLogDateRange':
         filters.push({
           $or: getDateRangeQuery(value, true),
         });

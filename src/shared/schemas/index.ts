@@ -4,14 +4,20 @@ import { configs } from '../configs';
 import { Connection, ConnectOptions, createConnection } from 'mongoose';
 import { Module } from '@nestjs/common';
 import { Product, ProductSchema } from './product.schema';
+import { User, UserSchema } from './user.schema';
+import { AuditLog, AuditLogSchema } from './audit.log.schema';
 
 // All Schema Models
 export * from './data.log.schema';
 export * from './product.schema';
+export * from './user.schema';
+export * from './audit.log.schema';
 
 const SCHEMA_LIST = [
   { name: Product.name, schema: ProductSchema, dbPrefix: 'APP' },
+  { name: User.name, schema: UserSchema, dbPrefix: 'APP' },
   { name: DataLog.name, schema: DataLogSchema, dbPrefix: 'LOG' },
+  { name: AuditLog.name, schema: AuditLogSchema, dbPrefix: 'LOG' },
 ];
 
 export const CONNECTION = SCHEMA_LIST.reduce((result, data) => {

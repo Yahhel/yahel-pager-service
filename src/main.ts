@@ -4,7 +4,11 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { Logger } from '@nestjs/common';
-import { LogInterceptor } from '@shared/interceptors';
+import {
+  AuditContextGuard,
+  AuditLogInterceptor,
+  LogInterceptor,
+} from '@shared/interceptors';
 import { AllExceptionsFilter } from '@shared/exceptions';
 import { DataLogsService } from '@shared/datalogs';
 import { ThrottlerGuard } from '@nestjs/throttler';
@@ -18,11 +22,14 @@ import { ValidatePipe } from '@shared/validators';
 function buildSwaggerDocument(app: any) {
   const config = new DocumentBuilder()
     .addBearerAuth()
-    .setTitle('AA WorkSync Backend Documentation')
+    .setTitle('Yahhel Pager Backend Documentation')
     .setDescription('All API description and usage')
     .setExternalDoc('Postman Collection', '/docs/api-json')
     .setVersion('1.0')
-    .addTag('hello')
+    .addTag('auth')
+    .addTag('users')
+    .addTag('admins-users')
+    .addTag('admins-audit-logs')
     .addTag('products')
     .build();
 
@@ -34,15 +41,18 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.enableCors();
   const logInterceptor = app.get<LogInterceptor>(LogInterceptor);
+  const auditLogInterceptor = app.get<AuditLogInterceptor>(AuditLogInterceptor);
   const throttlerGuard = app.get<ThrottlerGuard>(ThrottlerGuard);
+  const auditContextGuard = app.get<AuditContextGuard>(AuditContextGuard);
   const allExceptionsFilter = app.get<AllExceptionsFilter>(AllExceptionsFilter);
 
   // Add this to global for easy access anywhere in the app.
   global.dataLogsService = app.get<DataLogsService>(DataLogsService);
 
   app.useGlobalFilters(allExceptionsFilter);
-  app.useGlobalInterceptors(logInterceptor);
-  app.useGlobalGuards(throttlerGuard);
+  app.useGlobalInterceptors(logInterceptor, auditLogInterceptor);
+  // Audit context first so throttled requests are still audited
+  app.useGlobalGuards(auditContextGuard, throttlerGuard);
   app.useGlobalPipes(new ValidatePipe({ whitelist: true }));
   app.setGlobalPrefix('api');
   app.useLogger(app.get(Logger));
@@ -56,7 +66,7 @@ async function bootstrap() {
   buildSwaggerDocument(app);
   cloudinary.v2.config(configs().cloudinary);
   await app.listen(process.env.PORT || 3333);
-  console.log(`AA worksync application is running on: ${await app.getUrl()}`);
+  console.log(`Yahhel Pager application is running on: ${await app.getUrl()}`);
   console.log('Redis Connecting...');
   await startRedis();
 }

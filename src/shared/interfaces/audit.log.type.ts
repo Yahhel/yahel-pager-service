@@ -4,21 +4,18 @@ export enum AuditType {
   USER = 'USER',
 }
 
-export type CreateAuditPayload = {
-  actionBy?: string;
-  action?: string;
-  actionType?: string;
-  serviceName?: string;
-  requestUrl?: string;
-  requestMethod?: string;
-  requestActionBy?: string;
-  requestModelType?: string;
-  requestProductType?: string;
-  requestId?: string;
-  actionSuccessful?: boolean;
-  requestData?: any;
-  responseData?: any;
-  requestReference?: any;
-  previousData?: any;
-  currentData?: any;
+export enum AuditSeverity {
+  INFO = 'INFO',
+  WARNING = 'WARNING',
+  ERROR = 'ERROR',
+  CRITICAL = 'CRITICAL',
+}
+
+export type AuditMetaData = {
+  action?: AuditType;
+  description?: string;
+  severity?: AuditSeverity;
 };
+
+export const AuditTypes = [...new Set(Object.values(AuditType))];
+export const AuditSeverities = [...new Set(Object.values(AuditSeverity))];
