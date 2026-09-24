@@ -6,7 +6,11 @@ import { runNextTick } from './helper.util';
 let client: MailtrapClient;
 
 const getClient = () => {
-  client ??= new MailtrapClient({ token: configs().mailtrap.apiKey });
+  const { apiKey, inboxId } = configs().mailtrap;
+  client ??= new MailtrapClient({
+    token: apiKey,
+    ...(inboxId && { sandbox: true, testInboxId: inboxId }),
+  });
   return client;
 };
 

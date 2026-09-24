@@ -48,16 +48,18 @@ export const configs = () => ({
   },
   mailtrap: {
     apiKey: process.env.MAILTRAP_API_KEY,
+    // When set, mail goes to this Mailtrap testing inbox instead of real recipients
+    inboxId: +process.env.MAILTRAP_INBOX_ID || undefined,
     defaultEmailFrom: {
       hello: { name: 'Yahhel', email: 'hello@yahhel.com' },
       support: { name: 'Yahhel Support', email: 'support@yahhel.com' },
     },
     templates: {
-      welcome: process.env.MAILTRAP_TEMPLATE_WELCOME,
-      emailVerification: process.env.MAILTRAP_TEMPLATE_EMAIL_VERIFICATION,
-      passwordReset: process.env.MAILTRAP_TEMPLATE_PASSWORD_RESET,
-      passwordChanged: process.env.MAILTRAP_TEMPLATE_PASSWORD_CHANGED,
-      adminInvite: process.env.MAILTRAP_TEMPLATE_ADMIN_INVITE,
+      welcome: '',
+      emailVerification: '',
+      passwordReset: '',
+      passwordChanged: '',
+      adminInvite: '',
     },
   },
   seedAdmin: {
