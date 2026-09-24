@@ -1,2 +1,5 @@
-export * from './audit-logs.module';
-export * from './audit-logs.service';
+export * from './dto/create-auditlog.dto';
+
+export * from './auditlogs.admins.controller';
+export * from './auditlogs.service';
+export * from './auditlogs.module';

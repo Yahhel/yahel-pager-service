@@ -1,27 +1,38 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { HydratedDocument, Model } from 'mongoose';
-import { AuditSeverity, AuditType } from '../interfaces';
+
+import { AuditType } from '../interfaces';
 
 export type AuditLogDocument = HydratedDocument<AuditLog>;
 
-export type AuditLogModel = Model<AuditLogDocument>;
+// eslint-disable-next-line @typescript-eslint/no-empty-object-type
+export interface AuditLogModel extends Model<AuditLogDocument> {}
 
 @Schema({ timestamps: true, minimize: false })
 export class AuditLog {
-  @Prop({ default: 'UNKNOWN' })
+  @Prop()
   actionBy: string;
 
-  @Prop({ type: String, enum: AuditType, default: AuditType.USER })
+  @Prop()
   actionType: AuditType;
+
+  @Prop({ default: 'YAHHEL_PAGER' })
+  serviceName: string;
+
+  @Prop({ default: 'UNKNOWN' })
+  action: string;
 
   @Prop()
   description: string;
 
-  @Prop({ type: String, enum: AuditSeverity, default: AuditSeverity.INFO })
-  severity: AuditSeverity;
+  @Prop()
+  actionSuccessful: boolean;
 
   @Prop()
-  serviceName: string;
+  latencyMs: number;
+
+  @Prop()
+  responseStatus: number;
 
   @Prop()
   requestUrl: string;
@@ -30,31 +41,28 @@ export class AuditLog {
   requestMethod: string;
 
   @Prop()
+  requestActionBy: string;
+
+  @Prop()
   requestModelType: string;
+
+  @Prop({ default: 'UNKNOWN' })
+  severity: string;
 
   @Prop()
   requestReference: string;
 
   @Prop()
-  traceId: string;
-
-  @Prop()
   ipAddress: string;
 
-  @Prop()
+  @Prop({ type: String })
   requestData: string;
 
-  @Prop()
+  @Prop({ type: String })
   responseData: string;
 
-  @Prop()
-  responseStatus: number;
-
-  @Prop()
-  latencyMs: number;
-
-  @Prop({ default: false })
-  actionSuccessful: boolean;
+  declare createdAt: Date;
+  declare updatedAt: Date;
 }
 
 export const AuditLogSchema = SchemaFactory.createForClass(AuditLog);

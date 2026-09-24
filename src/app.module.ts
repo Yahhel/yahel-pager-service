@@ -2,41 +2,37 @@ import { Logger, Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { DataLogsModule } from '@shared/datalogs';
-import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
-import {
-  AuditContextGuard,
-  AuditLogInterceptor,
-  AuditLogRecorder,
-  LogInterceptor,
-} from '@shared/interceptors';
+import { AuditLogInterceptor, LogInterceptor } from '@shared/interceptors';
 import { AllExceptionsFilter } from '@shared/exceptions';
+import { RateLimitModule, RateLimitGuard } from '@shared/rate-limit';
 import { DBModule } from '@shared/schemas';
-import { AuthModule } from '@shared/auth';
-import { AuditLogsModule } from '@shared/audit-logs';
+import { AuthModule } from './shared/auth/auth.module';
+import { UsersModule } from './user/users.module';
+import { AuditLogModule } from '@shared/audit-logs';
+import { JwtUserStrategy } from '@shared/auth/strategies/jwt.user.strategy';
+import { JwtAdminStrategy } from '@shared/auth/strategies/jwt.admin.strategy';
+import { PassportModule } from '@nestjs/passport';
 import { ProductsModule } from './products';
-import { UsersModule } from './users';
 
 @Module({
   imports: [
-    ThrottlerModule.forRoot([{
-      ttl: +process.env.RATE_LIMIT_TTL,
-      limit: +process.env.RATE_LIMIT_REQUEST_SIZE,
-    }]),
+    RateLimitModule,
     DBModule,
+    PassportModule,
     DataLogsModule,
     AuthModule,
     UsersModule,
-    AuditLogsModule,
-    ProductsModule
+    AuditLogModule,
+    ProductsModule,
   ],
   controllers: [AppController],
   providers: [
-    AppService,
     Logger,
-    ThrottlerGuard,
-    AuditLogRecorder,
-    AuditContextGuard,
+    AppService,
+    RateLimitGuard,
     LogInterceptor,
+    JwtUserStrategy,
+    JwtAdminStrategy,
     AuditLogInterceptor,
     AllExceptionsFilter,
   ],

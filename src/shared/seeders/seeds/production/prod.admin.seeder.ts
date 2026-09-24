@@ -1,6 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { configs } from '../../../configs';
-import { UserRole } from '../../../interfaces';
+import { PasswordResetStatus, RoleType } from '../../../interfaces';
 import { User, UserModel } from '../../../schemas';
 import { BcryptUtil } from '../../../utils';
 import { Seeder } from '../Seeder';
@@ -19,7 +19,7 @@ export class ProdAdminSeeder implements Seeder {
       return;
     }
 
-    const exists = await this.userModel.exists({ roles: UserRole.ADMIN });
+    const exists = await this.userModel.exists({ roles: RoleType.ADMIN });
     if (exists) return;
 
     // Forced password change and 2FA setup happen on first login
@@ -28,9 +28,9 @@ export class ProdAdminSeeder implements Seeder {
       lastName,
       email: email.trim().toLowerCase(),
       password: await BcryptUtil.generateHash(password),
-      roles: [UserRole.ADMIN],
-      emailVerified: true,
-      passwordResetRequired: true,
+      roles: [RoleType.ADMIN],
+      emailVerification: true,
+      passwordResetStatus: PasswordResetStatus.REQUIRED,
     });
   }
 

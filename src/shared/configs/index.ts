@@ -1,10 +1,3 @@
-export const getJwtSecret = () => {
-  const secret = process.env.JWT_SECRET;
-  if (!secret)
-    throw new Error('JWT_SECRET is not set. Add it to your .env file.');
-  return secret;
-};
-
 export const configs = () => ({
   cloudinary: {
     cloud_name: process.env.CLOUDINARY_NAME,
@@ -32,35 +25,35 @@ export const configs = () => ({
     },
     url: process.env.REDIS_URL,
   },
-  auth: {
-    accessTokenTtlSeconds: (+process.env.JWT_EXPIRES_MINUTES || 60) * 60,
-    refreshTokenTtlSeconds:
-      (+process.env.REFRESH_TOKEN_TTL_DAYS || 10) * 24 * 3600,
-    twoFactorChallengeTtlSeconds: 5 * 60,
-    twoFactorSetupTtlSeconds: 10 * 60,
-    emailVerificationTtlSeconds: 10 * 60,
-    passwordResetTtlSeconds: 10 * 60,
-    adminInviteTtlSeconds: 48 * 3600,
-    maxCodeAttempts: 5,
-    throttleLimit: +process.env.AUTH_RATE_LIMIT_REQUEST_SIZE || 5,
-    testToken: process.env.TEST_TOKEN || '123456',
-    appName: process.env.PLATFORM_STARTER_NAME || 'Yahhel',
-  },
   mailtrap: {
     apiKey: process.env.MAILTRAP_API_KEY,
     // When set, mail goes to this Mailtrap testing inbox instead of real recipients
     inboxId: +process.env.MAILTRAP_INBOX_ID || undefined,
+    defaultEmailReceiver: 'tech@yahhel.com',
+    defaultEmailTo: {
+      support: 'support@yahhel.com',
+      engineering: 'engineering@yahhel.com',
+      marketing: 'marketing@yahhel.com',
+    },
     defaultEmailFrom: {
-      hello: { name: 'Yahhel', email: 'hello@yahhel.com' },
-      support: { name: 'Yahhel Support', email: 'support@yahhel.com' },
+      hello: 'Yahhel <hello@yahhel.com>',
+      support: 'Yahhel Support <support@yahhel.com>',
+      engineering: 'Yahhel Engineering <engineering@yahhel.com>',
+      marketing: 'Yahhel Marketing <marketing@yahhel.com>',
+      finance: 'Yahhel Finance <finance@yahhel.com>',
+      noreply: 'Noreply <noreply@yahhel.com>',
     },
     templates: {
-      welcome: '',
-      emailVerification: '',
-      passwordReset: '',
-      passwordChanged: '',
-      adminInvite: '',
+      generalWelcome: '',
+      generalEmailVerification: '',
+      generalPasswordChange: '',
+      generalPasswordChangeSuccess: '',
+      adminInvitation: '',
     },
+  },
+  app: {
+    appName: process.env.PLATFORM_STARTER_NAME || 'Yahhel',
+    testToken: process.env.TEST_RESET_TOKEN || '123456',
   },
   seedAdmin: {
     email: process.env.SEED_ADMIN_EMAIL,

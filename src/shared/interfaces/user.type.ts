@@ -1,38 +1,37 @@
-export enum Gender {
-  MALE = 'MALE',
-  FEMALE = 'FEMALE',
-}
-
-export enum UserRole {
-  BUYER = 'BUYER',
+export enum RoleType {
   SELLER = 'SELLER',
+  BUYER = 'BUYER',
   ADMIN = 'ADMIN',
 }
 
 export enum UserStatus {
   ACTIVE = 'ACTIVE',
-  DISABLED = 'DISABLED',
+  DELETE = 'DELETE',
+  DISABLE = 'DISABLE',
+  DEACTIVATE = 'DEACTIVATE',
 }
 
+export enum PasswordResetStatus {
+  REQUIRED = 'REQUIRED',
+  NOT_REQUIRED = 'NOT_REQUIRED',
+}
+
+export enum PasswordChangeReason {
+  FIRST_TIME_LOGIN = 'FIRST_TIME_LOGIN', // When user is invited or seeded and logs in for the first time
+  USER_INITIATED = 'USER_INITIATED', // When user changes password from their settings
+}
+
+export enum Gender {
+  MALE = 'MALE',
+  FEMALE = 'FEMALE',
+}
+
+export const RoleTypes = [...new Set(Object.values(RoleType))];
 export const Genders = [...new Set(Object.values(Gender))];
-export const UserRoles = [...new Set(Object.values(UserRole))];
 export const UserStatuses = [...new Set(Object.values(UserStatus))];
+export const PasswordChangeReasons = [
+  ...new Set(Object.values(PasswordChangeReason)),
+];
 
-export const USER_PUBLIC_FIELDS =
-  'firstName lastName email phone roles status emailVerified passwordResetRequired twoFactorEnabled lastLoginAt createdAt updatedAt';
-
-export type PublicUser = {
-  _id: any;
-  firstName: string;
-  lastName: string;
-  email: string;
-  phone?: string;
-  roles: UserRole[];
-  status: UserStatus;
-  emailVerified: boolean;
-  passwordResetRequired: boolean;
-  twoFactorEnabled: boolean;
-  lastLoginAt?: Date;
-  createdAt?: Date;
-  updatedAt?: Date;
-};
+export const USER_BASIC_FIELDS =
+  'firstName lastName email phone roles status emailVerification passwordResetStatus twoFactorEnabled lastLoginDate createdAt updatedAt';

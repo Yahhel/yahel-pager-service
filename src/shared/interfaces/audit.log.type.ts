@@ -11,11 +11,28 @@ export enum AuditSeverity {
   CRITICAL = 'CRITICAL',
 }
 
-export type AuditMetaData = {
-  action?: AuditType;
+export interface AuditMetaData {
+  action: string;
   description?: string;
-  severity?: AuditSeverity;
-};
+  severity?: 'INFO' | 'WARNING' | 'ERROR' | 'CRITICAL';
+}
 
-export const AuditTypes = [...new Set(Object.values(AuditType))];
-export const AuditSeverities = [...new Set(Object.values(AuditSeverity))];
+export type CreateAuditPayload = {
+  actionBy?: string;
+  action?: string;
+  actionType?: string;
+  serviceName?: string;
+  description?: string;
+  severity?: string;
+  requestUrl?: string;
+  requestMethod?: string;
+  requestActionBy?: string;
+  requestModelType?: string;
+  requestReference?: string;
+  ipAddress?: string;
+  actionSuccessful?: boolean;
+  responseStatus?: number;
+  latencyMs?: number;
+  requestData?: any;
+  responseData?: any;
+};

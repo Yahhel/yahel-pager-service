@@ -1,10 +1,15 @@
 import { ForbiddenException, UnauthorizedException } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { ALLOW_RESTRICTED_KEY, ROLES_KEY } from '../../decorators';
-import { SessionRestriction, UserRole } from '../../interfaces';
-import { JwtStrategy } from '../strategies/jwt.strategy';
-import { JwtAuthGuard } from './jwt-auth.guard';
-import { RolesGuard } from './roles.guard';
+import { ROLES_KEY } from '../../decorators';
+import { PasswordResetStatus, RoleType, UserStatus } from '../../interfaces';
+import { JwtUserStrategy } from '../strategies/jwt.user.strategy';
+import { JwtAdminStrategy } from '../strategies/jwt.admin.strategy';
+import { JwtAdminsGuard } from './jwt.admins.guard';
+import { RoleGuard } from './role.guard';
+
+jest.mock('@shared/utils/access-token-validator.util', () => ({
+  validateAccessTokenAfterRefreshOrRevoke: jest.fn().mockResolvedValue(true),
+}));
 
 const contextFor = (user: any, metadata: Record<string, any> = {}) => {
   const handler = () => null;
@@ -14,113 +19,108 @@ const contextFor = (user: any, metadata: Record<string, any> = {}) => {
   return {
     getHandler: () => handler,
     getClass: () => class {},
-    switchToHttp: () => ({ getRequest: () => ({ user }) }),
+    switchToHttp: () => ({
+      getRequest: () => ({ user, url: '/api/v1/users/profile' }),
+    }),
   } as any;
 };
 
-describe('RolesGuard', () => {
-  const guard = new RolesGuard(new Reflector());
+describe('RoleGuard', () => {
+  const guard = new RoleGuard(new Reflector());
 
-  it('allows routes without @Roles', () => {
-    expect(guard.canActivate(contextFor({ roles: [UserRole.BUYER] }))).toBe(
-      true,
-    );
+  it('allows routes without @Roles', async () => {
+    await expect(
+      guard.canActivate(contextFor({ roles: [RoleType.BUYER] })),
+    ).resolves.toBe(true);
   });
 
-  it('allows a user holding any required role', () => {
+  it('allows a user holding any required role', async () => {
     const context = contextFor(
-      { roles: [UserRole.BUYER, UserRole.SELLER] },
-      { [ROLES_KEY]: [UserRole.SELLER] },
-    );
-    expect(guard.canActivate(context)).toBe(true);
-  });
-
-  it('rejects a user without the required role', () => {
-    const context = contextFor(
-      { roles: [UserRole.BUYER, UserRole.SELLER] },
-      { [ROLES_KEY]: [UserRole.ADMIN] },
-    );
-    expect(() => guard.canActivate(context)).toThrow(ForbiddenException);
-  });
-});
-
-describe('JwtAuthGuard restrictions', () => {
-  const guard = new JwtAuthGuard(new Reflector());
-
-  beforeEach(() => {
-    jest
-      .spyOn(Object.getPrototypeOf(JwtAuthGuard.prototype), 'canActivate')
-      .mockResolvedValue(true);
-  });
-
-  it('blocks restricted sessions from normal routes', async () => {
-    const context = contextFor({
-      restrictions: [SessionRestriction.TWO_FACTOR_SETUP],
-    });
-    await expect(guard.canActivate(context)).rejects.toThrow(
-      ForbiddenException,
-    );
-  });
-
-  it('lets restricted sessions reach @AllowRestricted routes', async () => {
-    const context = contextFor(
-      { restrictions: [SessionRestriction.PASSWORD_CHANGE] },
-      { [ALLOW_RESTRICTED_KEY]: true },
+      { roles: [RoleType.BUYER, RoleType.SELLER] },
+      { [ROLES_KEY]: [RoleType.SELLER] },
     );
     await expect(guard.canActivate(context)).resolves.toBe(true);
   });
 
-  it('allows unrestricted sessions everywhere', async () => {
-    await expect(
-      guard.canActivate(contextFor({ restrictions: [] })),
-    ).resolves.toBe(true);
+  it('rejects a user without the required role', async () => {
+    const context = contextFor(
+      { roles: [RoleType.BUYER] },
+      { [ROLES_KEY]: [RoleType.SELLER] },
+    );
+    await expect(guard.canActivate(context)).rejects.toThrow(
+      ForbiddenException,
+    );
   });
 });
 
-describe('JwtStrategy', () => {
-  const session = {
-    userId: 'user-1',
-    jti: 'jti-1',
-    roles: [UserRole.BUYER],
-    restrictions: [],
-  };
-  const authStore: any = { getSession: jest.fn() };
-  let strategy: JwtStrategy;
+describe('JwtAdminsGuard', () => {
+  const guard = new JwtAdminsGuard();
 
-  beforeAll(() => {
-    process.env.JWT_SECRET = process.env.JWT_SECRET || 'test-secret';
-    strategy = new JwtStrategy(authStore);
+  beforeEach(() => {
+    jest
+      .spyOn(Object.getPrototypeOf(JwtAdminsGuard.prototype), 'canActivate')
+      .mockResolvedValue(true);
   });
 
-  it('returns the session identity for a live session', async () => {
-    authStore.getSession.mockResolvedValue(session);
-    await expect(
-      strategy.validate({ sub: 'user-1', sid: 'sid-1', jti: 'jti-1' }),
-    ).resolves.toEqual({
-      _id: 'user-1',
-      sid: 'sid-1',
-      roles: [UserRole.BUYER],
-      restrictions: [],
+  it('blocks admins who still have to change their default password', async () => {
+    const context = contextFor({
+      passwordResetStatus: PasswordResetStatus.REQUIRED,
+      twoFactorEnabled: true,
     });
+    await expect(guard.canActivate(context)).rejects.toThrow(
+      'Change your default password',
+    );
   });
 
-  it('rejects tokens from a revoked session', async () => {
-    authStore.getSession.mockResolvedValue(null);
+  it('blocks admins without 2FA', async () => {
+    const context = contextFor({
+      passwordResetStatus: PasswordResetStatus.NOT_REQUIRED,
+      twoFactorEnabled: false,
+    });
+    await expect(guard.canActivate(context)).rejects.toThrow('Enable 2FA');
+  });
+
+  it('allows admins who completed both steps', async () => {
+    const context = contextFor({
+      passwordResetStatus: PasswordResetStatus.NOT_REQUIRED,
+      twoFactorEnabled: true,
+    });
+    await expect(guard.canActivate(context)).resolves.toBe(true);
+  });
+});
+
+describe('JWT strategies', () => {
+  process.env.JWT_SECRET = process.env.JWT_SECRET || 'test-secret';
+  const authService: any = { findByEmail: jest.fn() };
+  const payload: any = { email: 'ada@test.com', roles: [RoleType.BUYER] };
+
+  it('user strategy returns current roles from the database', async () => {
+    authService.findByEmail.mockResolvedValue({
+      status: UserStatus.ACTIVE,
+      roles: [RoleType.BUYER, RoleType.SELLER],
+    });
     await expect(
-      strategy.validate({ sub: 'user-1', sid: 'sid-1', jti: 'jti-1' }),
+      new JwtUserStrategy(authService).validate(payload),
+    ).resolves.toMatchObject({ roles: [RoleType.BUYER, RoleType.SELLER] });
+  });
+
+  it('user strategy rejects disabled accounts immediately', async () => {
+    authService.findByEmail.mockResolvedValue({
+      status: UserStatus.DISABLE,
+      roles: [RoleType.BUYER],
+    });
+    await expect(
+      new JwtUserStrategy(authService).validate(payload),
     ).rejects.toThrow(UnauthorizedException);
   });
 
-  it('rejects access tokens superseded by a refresh', async () => {
-    authStore.getSession.mockResolvedValue(session);
+  it('admin strategy rejects non-admins', async () => {
+    authService.findByEmail.mockResolvedValue({
+      status: UserStatus.ACTIVE,
+      roles: [RoleType.BUYER, RoleType.SELLER],
+    });
     await expect(
-      strategy.validate({ sub: 'user-1', sid: 'sid-1', jti: 'old-jti' }),
-    ).rejects.toThrow(UnauthorizedException);
-  });
-
-  it('rejects tokens without a session id, such as 2FA challenge tokens', async () => {
-    await expect(
-      strategy.validate({ sub: 'user-1', jti: 'jti-1' } as any),
+      new JwtAdminStrategy(authService).validate(payload),
     ).rejects.toThrow(UnauthorizedException);
   });
 });

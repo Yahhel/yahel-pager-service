@@ -6,10 +6,10 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 import { HttpAdapterHost } from '@nestjs/core';
-import { ApiReq, LogLevel } from '../interfaces';
+import { ApiReq, AuditSeverity, AuditType, LogLevel } from '../interfaces';
 import { randomUUID } from 'crypto';
 import { getIpAddress } from '../utils';
-import { AUDIT_FINISHER_KEY } from '../interceptors/audit-log.recorder';
+import { isAuditLogEnabled } from '../interceptors/audit.interceptor';
 
 @Catch()
 export class AllExceptionsFilter implements ExceptionFilter {
@@ -43,6 +43,45 @@ export class AllExceptionsFilter implements ExceptionFilter {
       message,
       statusCode: isTranscribe ? HttpStatus.BAD_REQUEST : statusCode,
     };
+  }
+
+  // Guard rejections (401/403/429) never reach AuditLogInterceptor, which marks the requests it logs with requestReference
+  private static auditRejectedRequest(
+    req: ApiReq,
+    statusCode: number,
+    message: any,
+  ) {
+    if (!req.route || req.headers.requestReference || !isAuditLogEnabled())
+      return;
+
+    const url = `${req.protocol}://${req.headers.host}${req.originalUrl}`;
+    global.auditLogService?.create({
+      actionBy: req.user?._id ?? 'UNKNOWN',
+      requestActionBy: req.user?._id ?? 'UNKNOWN',
+      actionType: req.originalUrl.includes('/admins/')
+        ? AuditType.ADMIN
+        : AuditType.USER,
+      serviceName: process.env.PLATFORM_STARTER_NAME,
+      action: url,
+      requestUrl: url,
+      requestMethod: req.method,
+      requestModelType:
+        req.originalUrl.match(/\/api\/(?:v\d+\/)?(?:admins\/)?([^/?]+)/)?.[1] ||
+        'unknown',
+      requestReference: randomUUID(),
+      description: `Request rejected before reaching the handler: ${message}`,
+      severity: statusCode >= 500 ? AuditSeverity.ERROR : AuditSeverity.WARNING,
+      actionSuccessful: false,
+      responseStatus: statusCode,
+      ipAddress: req.userIpAddress,
+      requestData: {
+        body: req.body,
+        method: req.method,
+        traceId: req.traceId ?? 'UNKNOWN',
+        userAgent: req.headers?.['user-agent'] || 'UNKNOWN',
+      },
+      responseData: { message },
+    });
   }
 
   catch(exception: unknown, host: ArgumentsHost): void {
@@ -83,11 +122,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
       )?.response?.validationErrors;
     }
 
-    if ((exception as any)?.response?.restrictions) {
-      responseBody['restrictions'] = (exception as any).response.restrictions;
-    }
-
-    req[AUDIT_FINISHER_KEY]?.(false, httpStatus, responseBody);
+    AllExceptionsFilter.auditRejectedRequest(req, httpStatus, message);
 
     global.dataLogsService?.reqResLog(
       req.traceId,

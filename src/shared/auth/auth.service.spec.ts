@@ -1,14 +1,26 @@
-import { ForbiddenException, UnauthorizedException } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
 import {
-  AuthCodePurpose,
-  SessionRestriction,
-  UserRole,
+  BadRequestException,
+  ForbiddenException,
+  UnauthorizedException,
+} from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
+import * as speakeasy from 'speakeasy';
+import {
+  PasswordChangeReason,
+  PasswordResetStatus,
+  RoleType,
   UserStatus,
 } from '../interfaces';
-import { BcryptUtil, sha256 } from '../utils';
+import { BcryptUtil } from '../utils/bcrypt.util';
+import { convertToKey, getPlatformIssuer } from '../utils/helper.util';
+import { validateAccess } from '../utils/access-token-validator.util';
+import { redisUtilMock } from '../testkits/redis.mock';
 import { AuthService } from './auth.service';
 
+jest.mock(
+  '../utils/redis.util',
+  () => jest.requireActual('../testkits/redis.mock').redisUtilMock,
+);
 jest.mock('../utils/mailtrap.util', () => ({
   sendMail: jest.fn(),
   getMailTemplate: () => ({}),
@@ -16,95 +28,90 @@ jest.mock('../utils/mailtrap.util', () => ({
 
 const flushNextTick = () => new Promise((resolve) => setImmediate(resolve));
 
-const leanQuery = (value: any) => {
-  const query: any = {
-    select: jest.fn(() => query),
-    lean: jest.fn(() => Promise.resolve(value)),
-  };
-  return query;
-};
-
 describe('AuthService', () => {
+  process.env.JWT_SECRET = 'test-secret';
   const jwtService = new JwtService({ secret: 'test-secret' });
+  global.jwtService = jwtService;
+  const req: any = { headers: { 'user-agent': 'jest' } };
   let userModel: any;
-  let authStore: any;
-  let twoFactorService: any;
   let service: AuthService;
   let passwordHash: string;
 
-  const req: any = { headers: { 'user-agent': 'jest' } };
   const buildUser = (overrides = {}) => ({
-    _id: 'user-1',
+    _id: '64b000000000000000000001',
     email: 'ada@test.com',
     firstName: 'Ada',
+    lastName: 'Buyer',
     password: passwordHash,
-    roles: [UserRole.BUYER],
+    roles: [RoleType.BUYER],
     status: UserStatus.ACTIVE,
+    emailVerification: true,
+    passwordResetStatus: PasswordResetStatus.NOT_REQUIRED,
     twoFactorEnabled: false,
-    passwordResetRequired: false,
     ...overrides,
   });
+
+  const authedReq = async (loginResponse: any) => {
+    const decoded: any = jwtService.decode(loginResponse.accessToken);
+    return {
+      headers: {
+        'user-agent': 'jest',
+        authorization: `Bearer ${loginResponse.accessToken}`,
+      },
+      url: '/api/v1/auth/me',
+      user: decoded,
+    };
+  };
 
   beforeAll(async () => {
     passwordHash = await BcryptUtil.generateHash('Secret#123');
   });
 
   beforeEach(() => {
+    redisUtilMock.store.clear();
     userModel = {
-      findOne: jest.fn(),
+      findByEmail: jest.fn(),
       findById: jest.fn(),
-      updateOne: jest.fn().mockResolvedValue({}),
+      findOne: jest.fn(),
+      updateOne: jest.fn().mockResolvedValue({ modifiedCount: 1 }),
+      sendEmailVerificationToken: jest.fn(),
+      generateAuthCode: jest.fn().mockResolvedValue('123456'),
+      validateAuthCode: jest.fn(),
     };
-    authStore = {
-      createSession: jest.fn(),
-      getSession: jest.fn(),
-      rotateSession: jest.fn(),
-      revokeSession: jest.fn(),
-      revokeUserSessions: jest.fn(),
-      updateSession: jest.fn(),
-      setCode: jest.fn(),
-      verifyCode: jest.fn(),
-      getFailedAttempts: jest.fn().mockResolvedValue(0),
-      recordFailedAttempt: jest.fn(),
-    };
-    twoFactorService = { verifyToken: jest.fn() };
-    service = new AuthService(
-      userModel,
-      authStore,
-      twoFactorService,
-      jwtService,
-    );
+    service = new AuthService(userModel, jwtService);
   });
 
   describe('login', () => {
     it('returns the same error for an unknown email and a wrong password', async () => {
-      userModel.findOne.mockReturnValueOnce(leanQuery(null));
-      const unknown = service.login(req, {
-        email: 'nobody@test.com',
-        password: 'Secret#123',
-      });
-      await expect(unknown).rejects.toThrow(UnauthorizedException);
+      userModel.findByEmail.mockResolvedValueOnce(null);
+      await expect(
+        service.login(req, {
+          email: 'nobody@test.com',
+          password: 'Secret#123',
+        }),
+      ).rejects.toThrow('Invalid email or password');
 
-      userModel.findOne.mockReturnValueOnce(leanQuery(buildUser()));
-      const wrong = service.login(req, {
-        email: 'ada@test.com',
-        password: 'Wrong#123',
-      });
-      await expect(wrong).rejects.toThrow('Invalid email or password');
+      userModel.findByEmail.mockResolvedValueOnce(buildUser());
+      await expect(
+        service.login(req, { email: 'ada@test.com', password: 'Wrong#123' }),
+      ).rejects.toThrow('Invalid email or password');
     });
 
-    it('rejects disabled accounts after a correct password', async () => {
-      userModel.findOne.mockReturnValue(
-        leanQuery(buildUser({ status: UserStatus.DISABLED })),
+    it('only reveals a disabled account after the correct password', async () => {
+      userModel.findByEmail.mockResolvedValue(
+        buildUser({ status: UserStatus.DISABLE }),
       );
       await expect(
+        service.login(req, { email: 'ada@test.com', password: 'Wrong#123' }),
+      ).rejects.toThrow(UnauthorizedException);
+      await expect(
         service.login(req, { email: 'ada@test.com', password: 'Secret#123' }),
-      ).rejects.toThrow(ForbiddenException);
+      ).rejects.toThrow('disabled');
     });
 
     it('returns a 2FA challenge instead of tokens when 2FA is enabled', async () => {
-      userModel.findOne.mockReturnValue(
-        leanQuery(buildUser({ twoFactorEnabled: true })),
+      userModel.findByEmail.mockResolvedValue(
+        buildUser({ twoFactorEnabled: true }),
       );
       const result: any = await service.login(req, {
         email: 'ada@test.com',
@@ -114,226 +121,308 @@ describe('AuthService', () => {
       expect(result.requiresTwoFactor).toBe(true);
       expect(result.accessToken).toBeUndefined();
       expect(jwtService.decode(result.tempToken)).toMatchObject({
-        sub: 'user-1',
         stage: '2fa_pending',
       });
-      expect(authStore.createSession).not.toHaveBeenCalled();
     });
 
-    it('issues a session with a minimal token payload', async () => {
-      userModel.findOne.mockReturnValue(leanQuery(buildUser()));
+    it('signs platform claims with a minimal user and registers the token in redis', async () => {
+      userModel.findByEmail.mockResolvedValue(buildUser());
       const result: any = await service.login(req, {
         email: 'ada@test.com',
         password: 'Secret#123',
       });
 
       const payload: any = jwtService.decode(result.accessToken);
-      expect(Object.keys(payload).sort()).toEqual(
-        ['exp', 'iat', 'jti', 'sid', 'sub'].sort(),
-      );
-      const [sid, secret] = result.refreshToken.split('.');
-      expect(sid).toBe(payload.sid);
-      expect(authStore.createSession).toHaveBeenCalledWith(
-        sid,
-        expect.objectContaining({
-          userId: 'user-1',
-          jti: payload.jti,
-          refreshTokenHash: sha256(secret),
-          restrictions: [],
-        }),
-      );
-    });
-
-    it('restricts admins without 2FA and users that must change their password', async () => {
-      userModel.findOne.mockReturnValue(
-        leanQuery(
-          buildUser({ roles: [UserRole.ADMIN], passwordResetRequired: true }),
+      const { issuer, issuerSub, issuerHashPrefix, issuerEmail } =
+        getPlatformIssuer();
+      expect(payload).toMatchObject({
+        iss: issuer,
+        sub: issuerSub,
+        plcd: '64b000000000000000000001',
+        plhh: convertToKey(
+          issuer + issuerEmail + '64b000000000000000000001',
+          issuerHashPrefix,
         ),
-      );
-      const result: any = await service.login(req, {
-        email: 'ada@test.com',
-        password: 'Secret#123',
+        _id: '64b000000000000000000001',
+        roles: [RoleType.BUYER],
       });
-      expect(result.restrictions).toEqual([
-        SessionRestriction.PASSWORD_CHANGE,
-        SessionRestriction.TWO_FACTOR_SETUP,
-      ]);
-    });
-  });
+      expect(payload.password).toBeUndefined();
+      expect(payload.twoFactorSecret).toBeUndefined();
 
-  describe('verifyTwoFactorLogin', () => {
-    const challengeFor = (userId: string) =>
-      jwtService.sign({
-        sub: userId,
-        jti: 'challenge-1',
-        stage: '2fa_pending',
-      });
-
-    it('rejects access tokens used as challenge tokens', async () => {
-      const accessToken = jwtService.sign({
-        sub: 'user-1',
-        sid: 's',
-        jti: 'j',
-      });
+      // Stored before returning, so the token is valid immediately
       await expect(
-        service.verifyTwoFactorLogin(req, {
-          tempToken: accessToken,
-          token: '123456',
-        }),
-      ).rejects.toThrow(UnauthorizedException);
-    });
-
-    it('locks the challenge after too many failed attempts', async () => {
-      authStore.getFailedAttempts.mockResolvedValue(5);
-      await expect(
-        service.verifyTwoFactorLogin(req, {
-          tempToken: challengeFor('user-1'),
-          token: '123456',
-        }),
-      ).rejects.toThrow('Too many failed attempts');
-      expect(userModel.findById).not.toHaveBeenCalled();
-    });
-
-    it('records a failed attempt on a wrong code', async () => {
-      userModel.findById.mockReturnValue(
-        leanQuery(buildUser({ twoFactorEnabled: true })),
-      );
-      twoFactorService.verifyToken.mockResolvedValue(false);
-      await expect(
-        service.verifyTwoFactorLogin(req, {
-          tempToken: challengeFor('user-1'),
-          token: '000000',
-        }),
-      ).rejects.toThrow('Invalid 2FA code');
-      expect(authStore.recordFailedAttempt).toHaveBeenCalledWith(
-        AuthCodePurpose.TWO_FACTOR_LOGIN,
-        'challenge-1',
-        expect.any(Number),
-      );
+        validateAccess((await authedReq(result)) as any),
+      ).resolves.toBe(true);
     });
   });
 
   describe('refreshToken', () => {
-    it('rotates the refresh token and access token id', async () => {
-      authStore.getSession.mockResolvedValue({
-        userId: 'user-1',
-        roles: [UserRole.BUYER],
-        restrictions: [],
-        refreshTokenHash: sha256('old-secret'),
+    it('rotates tokens and invalidates the old access and refresh tokens', async () => {
+      userModel.findByEmail.mockResolvedValue(buildUser());
+      const login: any = await service.login(req, {
+        email: 'ada@test.com',
+        password: 'Secret#123',
       });
 
-      const result = await service.refreshToken(req, {
-        refreshToken: 'sid-1.old-secret',
+      const refreshed = await service.refreshToken(req, {
+        refreshToken: login.refreshToken,
       });
 
-      const [sid, newSecret] = result.refreshToken.split('.');
-      expect(sid).toBe('sid-1');
-      expect(newSecret).not.toBe('old-secret');
-      expect(authStore.rotateSession).toHaveBeenCalledWith('sid-1', 'user-1', {
-        jti: (jwtService.decode(result.accessToken) as any).jti,
-        refreshTokenHash: sha256(newSecret),
+      expect(refreshed.refreshToken).not.toBe(login.refreshToken);
+      await expect(
+        validateAccess((await authedReq(refreshed)) as any),
+      ).resolves.toBe(true);
+      await expect(
+        validateAccess((await authedReq(login)) as any),
+      ).resolves.toBe(false);
+      await expect(
+        service.refreshToken(req, { refreshToken: login.refreshToken }),
+      ).rejects.toThrow('Invalid refresh token supplied.');
+    });
+  });
+
+  describe('sessions', () => {
+    it('logout invalidates only the current session', async () => {
+      userModel.findByEmail.mockResolvedValue(buildUser());
+      const first: any = await service.login(req, {
+        email: 'ada@test.com',
+        password: 'Secret#123',
       });
+      const second: any = await service.login(req, {
+        email: 'ada@test.com',
+        password: 'Secret#123',
+      });
+
+      await service.logout((await authedReq(first)) as any);
+
+      await expect(
+        validateAccess((await authedReq(first)) as any),
+      ).resolves.toBe(false);
+      await expect(
+        validateAccess((await authedReq(second)) as any),
+      ).resolves.toBe(true);
     });
 
-    it('revokes the session when a rotated-out token is replayed', async () => {
-      authStore.getSession.mockResolvedValue({
-        userId: 'user-1',
-        refreshTokenHash: sha256('current-secret'),
+    it('reset password logs out every session and verifies the email', async () => {
+      userModel.findByEmail.mockResolvedValue(buildUser());
+      const login: any = await service.login(req, {
+        email: 'ada@test.com',
+        password: 'Secret#123',
+      });
+      userModel.findOne.mockResolvedValue(buildUser());
+      userModel.validateAuthCode.mockResolvedValue(true);
+
+      await service.resetPassword({
+        email: 'ada@test.com',
+        token: '123456',
+        newPassword: 'NewSecret#123',
+      });
+
+      expect(userModel.updateOne).toHaveBeenCalledWith(
+        { _id: '64b000000000000000000001' },
+        expect.objectContaining({
+          emailVerification: true,
+          passwordResetStatus: PasswordResetStatus.NOT_REQUIRED,
+        }),
+      );
+      await expect(
+        validateAccess((await authedReq(login)) as any),
+      ).resolves.toBe(false);
+    });
+
+    it('change password keeps the current session and logs out the others', async () => {
+      userModel.findByEmail.mockResolvedValue(buildUser());
+      const current: any = await service.login(req, {
+        email: 'ada@test.com',
+        password: 'Secret#123',
+      });
+      const other: any = await service.login(req, {
+        email: 'ada@test.com',
+        password: 'Secret#123',
+      });
+      userModel.findById.mockResolvedValue(buildUser());
+
+      await service.changePassword((await authedReq(current)) as any, {
+        type: PasswordChangeReason.USER_INITIATED,
+        oldPassword: 'Secret#123',
+        newPassword: 'NewSecret#123',
       });
 
       await expect(
-        service.refreshToken(req, { refreshToken: 'sid-1.stale-secret' }),
-      ).rejects.toThrow(UnauthorizedException);
-      expect(authStore.revokeSession).toHaveBeenCalledWith('user-1', 'sid-1');
+        validateAccess((await authedReq(current)) as any),
+      ).resolves.toBe(true);
+      await expect(
+        validateAccess((await authedReq(other)) as any),
+      ).resolves.toBe(false);
     });
   });
 
   describe('password flows', () => {
-    it('forgot-password replies identically and does the work off the response path', async () => {
-      // Lookups run on the next tick, in call order
+    it('first-time password change is allowed only while a reset is required', async () => {
+      const authed: any = { headers: {}, user: { _id: 'u1' } };
+      userModel.findById.mockResolvedValueOnce(
+        buildUser({ passwordResetStatus: PasswordResetStatus.REQUIRED }),
+      );
+      await expect(
+        service.changePassword(authed, {
+          type: PasswordChangeReason.FIRST_TIME_LOGIN,
+          newPassword: 'NewSecret#123',
+        }),
+      ).resolves.toMatchObject({ message: expect.any(String) });
+
+      userModel.findById.mockResolvedValueOnce(buildUser());
+      await expect(
+        service.changePassword(authed, {
+          type: PasswordChangeReason.FIRST_TIME_LOGIN,
+          newPassword: 'NewSecret#123',
+        }),
+      ).rejects.toThrow('Password has already been changed or not required');
+    });
+
+    it('forgot password replies the same way and does the work off the response path', async () => {
       userModel.findOne
-        .mockReturnValueOnce(leanQuery(null))
-        .mockReturnValueOnce(leanQuery(buildUser()));
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(buildUser());
       const unknown = service.forgotPassword({ email: 'nobody@test.com' });
       const known = service.forgotPassword({ email: 'ada@test.com' });
 
       expect(unknown).toEqual(known);
       await flushNextTick();
       await flushNextTick();
-      expect(authStore.setCode).toHaveBeenCalledTimes(1);
-      expect(authStore.setCode).toHaveBeenCalledWith(
-        AuthCodePurpose.PASSWORD_RESET,
-        'user-1',
-        expect.any(String),
-        expect.any(Number),
+      expect(userModel.generateAuthCode).toHaveBeenCalledTimes(1);
+      expect(userModel.generateAuthCode).toHaveBeenCalledWith(
+        'forgot_password',
+        '64b000000000000000000001',
+        300,
       );
     });
 
-    it('reset-password revokes every session and marks the email verified', async () => {
-      userModel.findOne.mockReturnValue(leanQuery(buildUser()));
-      authStore.verifyCode.mockResolvedValue(true);
-
-      await service.resetPassword({
-        email: 'ada@test.com',
-        code: '123456',
-        newPassword: 'NewSecret#123',
-      });
-
-      expect(userModel.updateOne).toHaveBeenCalledWith(
-        { _id: 'user-1' },
-        expect.objectContaining({
-          emailVerified: true,
-          passwordResetRequired: false,
-        }),
-      );
-      expect(authStore.revokeUserSessions).toHaveBeenCalledWith('user-1');
-    });
-
-    it('reset-password gives the same error for an unknown email and a wrong code', async () => {
-      userModel.findOne.mockReturnValueOnce(leanQuery(null));
+    it('reset password gives the same error for an unknown email and a wrong code', async () => {
+      userModel.findOne.mockResolvedValueOnce(null);
       await expect(
         service.resetPassword({
           email: 'nobody@test.com',
-          code: '123456',
+          token: '123456',
           newPassword: 'NewSecret#123',
         }),
-      ).rejects.toThrow('Invalid or expired code');
+      ).rejects.toThrow('Invalid or expired token');
 
-      userModel.findOne.mockReturnValueOnce(leanQuery(buildUser()));
-      authStore.verifyCode.mockResolvedValue(false);
+      userModel.findOne.mockResolvedValueOnce(buildUser());
+      userModel.validateAuthCode.mockResolvedValueOnce(false);
       await expect(
         service.resetPassword({
           email: 'ada@test.com',
-          code: '000000',
+          token: '000000',
           newPassword: 'NewSecret#123',
         }),
-      ).rejects.toThrow('Invalid or expired code');
+      ).rejects.toThrow('Invalid or expired token');
+    });
+  });
+
+  describe('2FA', () => {
+    const secret = speakeasy.generateSecret({ length: 20 }).base32;
+
+    it('admins cannot disable 2FA', async () => {
+      userModel.findById.mockResolvedValue(
+        buildUser({ roles: [RoleType.ADMIN], twoFactorEnabled: true }),
+      );
+      await expect(
+        service.disable2FA({ user: { _id: 'u1' } } as any, {
+          password: 'Secret#123',
+        }),
+      ).rejects.toThrow(ForbiddenException);
     });
 
-    it('change-password keeps the current session and lifts its restriction', async () => {
-      userModel.findById.mockReturnValue(leanQuery(buildUser()));
-      const authUser = {
-        _id: 'user-1',
-        sid: 'sid-1',
-        roles: [UserRole.ADMIN],
-        restrictions: [
-          SessionRestriction.PASSWORD_CHANGE,
-          SessionRestriction.TWO_FACTOR_SETUP,
-        ],
-      };
+    it('a backup code works once', async () => {
+      const code = 'ABCD1234';
+      const user: any = buildUser({
+        twoFactorEnabled: true,
+        twoFactorSecret: secret,
+        backupCodes: [await BcryptUtil.generateHash(code)],
+      });
+      userModel.findById.mockReturnValue({ lean: () => Promise.resolve(user) });
+      // Apply $pull to the in-memory user so reuse behaves like the real DB
+      userModel.updateOne.mockImplementation(async (filter, update) => {
+        const pulled = update?.$pull?.backupCodes;
+        if (!pulled) return { modifiedCount: 1 };
+        if (!user.backupCodes.includes(filter.backupCodes))
+          return { modifiedCount: 0 };
+        user.backupCodes = user.backupCodes.filter((c) => c !== pulled);
+        return { modifiedCount: 1 };
+      });
+      const challenge = () =>
+        jwtService.sign({ userId: user._id, stage: '2fa_pending', jti: 'j1' });
 
-      await service.changePassword(authUser, {
-        oldPassword: 'Secret#123',
-        newPassword: 'NewSecret#123',
+      await expect(
+        service.verify2FALogin(req, {
+          tempToken: challenge(),
+          twoFactorToken: code.toLowerCase(),
+        }),
+      ).resolves.toHaveProperty('accessToken');
+
+      await expect(
+        service.verify2FALogin(req, {
+          tempToken: challenge(),
+          twoFactorToken: code,
+        }),
+      ).rejects.toThrow('Invalid 2FA token');
+    });
+
+    it('locks the 2FA challenge after 5 wrong codes', async () => {
+      const user = buildUser({
+        twoFactorEnabled: true,
+        twoFactorSecret: secret,
+      });
+      userModel.findById.mockReturnValue({ lean: () => Promise.resolve(user) });
+      const tempToken = jwtService.sign({
+        userId: user._id,
+        stage: '2fa_pending',
+        jti: 'lock-test',
       });
 
-      expect(authStore.revokeUserSessions).toHaveBeenCalledWith(
-        'user-1',
-        'sid-1',
+      for (let i = 0; i < 5; i++) {
+        await expect(
+          service.verify2FALogin(req, { tempToken, twoFactorToken: '000000' }),
+        ).rejects.toThrow('Invalid 2FA token');
+      }
+      await expect(
+        service.verify2FALogin(req, {
+          tempToken,
+          twoFactorToken: speakeasy.totp({ secret, encoding: 'base32' }),
+        }),
+      ).rejects.toThrow('Too many failed attempts');
+    });
+
+    it('rejects an access token used as a 2FA challenge', async () => {
+      userModel.findByEmail.mockResolvedValue(buildUser());
+      const login: any = await service.login(req, {
+        email: 'ada@test.com',
+        password: 'Secret#123',
+      });
+      await expect(
+        service.verify2FALogin(req, {
+          tempToken: login.accessToken,
+          twoFactorToken: '123456',
+        }),
+      ).rejects.toThrow(UnauthorizedException);
+    });
+
+    it('enable requires a valid code from the pending setup', async () => {
+      userModel.findById.mockResolvedValue(buildUser());
+      await service.setup2FA({ user: { _id: 'u1' } } as any);
+      const [setupKey] = [...redisUtilMock.store.keys()].filter((k) =>
+        k.startsWith('2fa_setup:'),
       );
-      expect(authStore.updateSession).toHaveBeenCalledWith('sid-1', {
-        restrictions: [SessionRestriction.TWO_FACTOR_SETUP],
+      const setupSecret = redisUtilMock.store.get(setupKey).secret;
+
+      await expect(
+        service.enable2FA({ user: { _id: 'u1' } } as any, { token: '000000' }),
+      ).rejects.toThrow(BadRequestException);
+
+      const result = await service.enable2FA({ user: { _id: 'u1' } } as any, {
+        token: speakeasy.totp({ secret: setupSecret, encoding: 'base32' }),
       });
+      expect(result.backupCodes).toHaveLength(8);
     });
   });
 });

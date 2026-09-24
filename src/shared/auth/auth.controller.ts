@@ -1,229 +1,273 @@
 import {
   Body,
   Controller,
-  Get,
-  HttpCode,
-  HttpStatus,
   Post,
+  Req,
   Request,
+  Get,
   UseGuards,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
-import { Throttle } from '@nestjs/throttler';
-import { configs } from '../configs';
-import { AllowRestricted, AuditLogMeta } from '../decorators';
-import { ApiReq, AuditSeverity } from '../interfaces';
 import { AuthService } from './auth.service';
+import { CreateUserDto } from '../dtos/create-user.dto';
+import { VerifyEmailDto } from '@shared/dtos/verify-email.dto';
+import { SendEmailVerificationTokenDto } from '@shared/dtos/send-email-verification-token.dto';
 import {
-  ChangePasswordDto,
-  ConfirmTwoFactorDto,
-  EnableTwoFactorDto,
-  ForgotPasswordDto,
+  ConfirmPasswordDto,
+  Disable2FADto,
+  Enable2FADto,
+  GenerateBackupCodesDto,
   LoginDto,
-  RefreshTokenDto,
-  ResetPasswordDto,
-  SignupDto,
-  VerifyEmailDto,
-  VerifyTwoFactorLoginDto,
-} from './dto';
-import { JwtAuthGuard } from './guards';
-import { TwoFactorService } from './two-factor.service';
-
-const STRICT_THROTTLE = {
-  default: {
-    limit: () => configs().auth.throttleLimit,
-    ttl: 60_000,
-  },
-};
+  Verify2FALoginDto,
+} from '@shared/dtos/login.dto';
+import { LoginResponseDto } from '@shared/dtos/login-response.dto';
+import { RefreshTokenDto } from '@shared/dtos/refresh-token.dto';
+import { ApiReq, AuditSeverity, AuditType } from '@shared/interfaces';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { JwtUsersGuard } from './guards';
+import { ForgotPasswordDTO, ResetPasswordDTO } from '@shared/dtos';
+import { AuditLogMeta } from '@shared/decorators';
+import { PasswordChangeDTO } from '@shared/dtos/password-change.dto';
+import { RateProfile } from '@shared/rate-limit';
 
 @ApiTags('auth')
 @Controller('v1/auth')
 export class AuthController {
-  constructor(
-    private readonly authService: AuthService,
-    private readonly twoFactorService: TwoFactorService,
-  ) {}
+  constructor(private readonly authService: AuthService) {}
 
   @AuditLogMeta({
-    description: 'User signed up',
-    severity: AuditSeverity.WARNING,
+    action: AuditType.USER,
+    description: 'User initiated signup request via public API endpoint',
+    severity: AuditSeverity.CRITICAL,
   })
-  @Throttle(STRICT_THROTTLE)
+  @RateProfile('sensitive')
   @Post('signup')
-  signup(@Request() req: ApiReq, @Body() dto: SignupDto) {
-    return this.authService.signup(req, dto);
+  async registerUser(@Req() req: Request, @Body() body: CreateUserDto) {
+    return await this.authService.createUser(body);
   }
 
   @AuditLogMeta({
-    description: 'User login attempt',
-    severity: AuditSeverity.WARNING,
+    action: AuditType.USER,
+    description:
+      'User attempted email verification using public verification endpoint',
+    severity: AuditSeverity.ERROR,
   })
-  @Throttle(STRICT_THROTTLE)
-  @HttpCode(HttpStatus.OK)
+  @RateProfile('sensitive')
+  @Post('verify-email/public')
+  async verifyEmail(@Req() req: Request, @Body() body: VerifyEmailDto) {
+    return await this.authService.verifyEmail(body);
+  }
+
+  @AuditLogMeta({
+    action: AuditType.USER,
+    description: 'User attempted to confirm password',
+    severity: AuditSeverity.CRITICAL,
+  })
+  @ApiBearerAuth()
+  @UseGuards(JwtUsersGuard)
+  @Post('confirm-password')
+  async confirmUserPassword(
+    @Request() req: ApiReq,
+    @Body() body: ConfirmPasswordDto,
+  ) {
+    return await this.authService.confirmUserPassword(req, body);
+  }
+
+  @AuditLogMeta({
+    action: AuditType.USER,
+    description:
+      'User requested email verification token for account validation',
+    severity: AuditSeverity.CRITICAL,
+  })
+  @RateProfile('sensitive')
+  @Post('/email-verification/send')
+  async sendEmailVerificationToken(
+    @Request() req: ApiReq,
+    @Body() body: SendEmailVerificationTokenDto,
+  ) {
+    return await this.authService.sendEmailVerificationToken(body);
+  }
+
+  @AuditLogMeta({
+    action: AuditType.USER,
+    description: 'User attempted login via public login endpoint',
+    severity: AuditSeverity.CRITICAL,
+  })
+  @RateProfile('sensitive')
   @Post('login')
-  login(@Request() req: ApiReq, @Body() dto: LoginDto) {
-    return this.authService.login(req, dto);
+  async login(
+    @Body() loginDto: LoginDto,
+    @Request() req: ApiReq,
+  ): Promise<
+    LoginResponseDto | { requiresTwoFactor: boolean; tempToken: string }
+  > {
+    return this.authService.login(req, loginDto);
   }
 
   @AuditLogMeta({
-    description: 'User completed 2FA login challenge',
-    severity: AuditSeverity.WARNING,
+    action: AuditType.USER,
+    description: 'User requested to refresh authentication token',
+    severity: AuditSeverity.ERROR,
   })
-  @Throttle(STRICT_THROTTLE)
-  @HttpCode(HttpStatus.OK)
-  @Post('2fa/verify')
-  verifyTwoFactorLogin(
-    @Request() req: ApiReq,
-    @Body() dto: VerifyTwoFactorLoginDto,
-  ) {
-    return this.authService.verifyTwoFactorLogin(req, dto);
-  }
-
-  @AuditLogMeta({ description: 'User refreshed access token' })
-  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
   @Post('refresh-token')
-  refreshToken(@Request() req: ApiReq, @Body() dto: RefreshTokenDto) {
-    return this.authService.refreshToken(req, dto);
-  }
-
-  @AuditLogMeta({ description: 'User logged out' })
-  @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard)
-  @AllowRestricted()
-  @HttpCode(HttpStatus.OK)
-  @Post('logout')
-  logout(@Request() req: ApiReq) {
-    return this.authService.logout(req.user);
-  }
-
-  @AuditLogMeta({ description: 'User fetched own profile' })
-  @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard)
-  @AllowRestricted()
-  @Get('me')
-  me(@Request() req: ApiReq) {
-    return this.authService.me(req.user);
-  }
-
-  @AuditLogMeta({
-    description: 'User changed password',
-    severity: AuditSeverity.CRITICAL,
-  })
-  @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard)
-  @AllowRestricted()
-  @HttpCode(HttpStatus.OK)
-  @Post('password-change')
-  changePassword(@Request() req: ApiReq, @Body() dto: ChangePasswordDto) {
-    return this.authService.changePassword(req.user, dto);
-  }
-
-  @AuditLogMeta({ description: 'User requested email verification code' })
-  @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard)
-  @Throttle(STRICT_THROTTLE)
-  @HttpCode(HttpStatus.OK)
-  @Post('email-verification/send')
-  sendEmailVerification(@Request() req: ApiReq) {
-    return this.authService.sendEmailVerification(req.user);
-  }
-
-  @AuditLogMeta({
-    description: 'User verified email',
-    severity: AuditSeverity.WARNING,
-  })
-  @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard)
-  @Throttle(STRICT_THROTTLE)
-  @HttpCode(HttpStatus.OK)
-  @Post('verify-email')
-  verifyEmail(@Request() req: ApiReq, @Body() dto: VerifyEmailDto) {
-    return this.authService.verifyEmail(req.user, dto);
-  }
-
-  @AuditLogMeta({
-    description: 'User requested password reset',
-    severity: AuditSeverity.WARNING,
-  })
-  @Throttle(STRICT_THROTTLE)
-  @HttpCode(HttpStatus.OK)
-  @Post('forgot-password')
-  forgotPassword(@Body() dto: ForgotPasswordDto) {
-    return this.authService.forgotPassword(dto);
-  }
-
-  @AuditLogMeta({
-    description: 'User reset password with code',
-    severity: AuditSeverity.CRITICAL,
-  })
-  @Throttle(STRICT_THROTTLE)
-  @HttpCode(HttpStatus.OK)
-  @Post('reset-password')
-  resetPassword(@Body() dto: ResetPasswordDto) {
-    return this.authService.resetPassword(dto);
-  }
-
-  @AuditLogMeta({
-    description: 'User started 2FA setup',
-    severity: AuditSeverity.WARNING,
-  })
-  @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard)
-  @AllowRestricted()
-  @HttpCode(HttpStatus.OK)
-  @Post('2fa/setup')
-  setupTwoFactor(@Request() req: ApiReq) {
-    return this.twoFactorService.setup(req.user);
-  }
-
-  @AuditLogMeta({
-    description: 'User enabled 2FA',
-    severity: AuditSeverity.CRITICAL,
-  })
-  @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard)
-  @AllowRestricted()
-  @HttpCode(HttpStatus.OK)
-  @Post('2fa/enable')
-  enableTwoFactor(@Request() req: ApiReq, @Body() dto: EnableTwoFactorDto) {
-    return this.twoFactorService.enable(req.user, dto);
-  }
-
-  @AuditLogMeta({
-    description: 'User disabled 2FA',
-    severity: AuditSeverity.CRITICAL,
-  })
-  @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard)
-  @Throttle(STRICT_THROTTLE)
-  @HttpCode(HttpStatus.OK)
-  @Post('2fa/disable')
-  disableTwoFactor(@Request() req: ApiReq, @Body() dto: ConfirmTwoFactorDto) {
-    return this.twoFactorService.disable(req.user, dto);
-  }
-
-  @AuditLogMeta({
-    description: 'User regenerated 2FA backup codes',
-    severity: AuditSeverity.CRITICAL,
-  })
-  @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard)
-  @Throttle(STRICT_THROTTLE)
-  @HttpCode(HttpStatus.OK)
-  @Post('2fa/backup-codes')
-  regenerateBackupCodes(
+  async refreshToken(
+    @Body() refreshTokenDto: RefreshTokenDto,
     @Request() req: ApiReq,
-    @Body() dto: ConfirmTwoFactorDto,
   ) {
-    return this.twoFactorService.regenerateBackupCodes(req.user, dto);
+    return this.authService.refreshToken(req, refreshTokenDto);
   }
 
-  @AuditLogMeta({ description: 'User checked 2FA status' })
+  @AuditLogMeta({
+    action: AuditType.USER,
+    description: 'User logged out',
+    severity: AuditSeverity.INFO,
+  })
   @ApiBearerAuth()
-  @UseGuards(JwtAuthGuard)
-  @AllowRestricted()
+  @UseGuards(JwtUsersGuard)
+  @Post('logout')
+  async logout(@Request() req: ApiReq) {
+    return this.authService.logout(req);
+  }
+
+  @AuditLogMeta({
+    action: AuditType.USER,
+    description: 'User attempted to change thier password',
+    severity: AuditSeverity.CRITICAL,
+  })
+  @ApiBearerAuth()
+  @UseGuards(JwtUsersGuard)
+  @Post('password-change')
+  async passwordChange(
+    @Body() passwordChangeDTO: PasswordChangeDTO,
+    @Request() req: ApiReq,
+  ) {
+    return this.authService.changePassword(req, passwordChangeDTO);
+  }
+
+  @AuditLogMeta({
+    action: AuditType.USER,
+    description: 'Authenticated user fetched own profile information',
+    severity: AuditSeverity.ERROR,
+  })
+  @ApiBearerAuth()
+  @UseGuards(JwtUsersGuard)
+  @Get('me')
+  getUserProfile(@Request() req: ApiReq) {
+    return this.authService.findMe(req);
+  }
+
+  @AuditLogMeta({
+    action: AuditType.USER,
+    description: 'User requested password reset via public endpoint',
+    severity: AuditSeverity.CRITICAL,
+  })
+  @RateProfile('sensitive')
+  @Post('forgot-password/public')
+  async forgotPassword(@Body() forgotPasswordDTO: ForgotPasswordDTO) {
+    return this.authService.forgotPassword(forgotPasswordDTO);
+  }
+
+  @AuditLogMeta({
+    action: AuditType.USER,
+    description: 'User attempted to reset password with provided reset token',
+    severity: AuditSeverity.CRITICAL,
+  })
+  @RateProfile('sensitive')
+  @Post('reset-password/public')
+  async resetPassword(@Body() resetPasswordDTO: ResetPasswordDTO) {
+    return this.authService.resetPassword(resetPasswordDTO);
+  }
+
+  @AuditLogMeta({
+    action: AuditType.USER,
+    description: 'User initiated 2FA setup process',
+    severity: AuditSeverity.CRITICAL,
+  })
+  @ApiBearerAuth()
+  @UseGuards(JwtUsersGuard)
+  @Post('2fa/setup')
+  async setup2FA(@Request() req: ApiReq): Promise<{
+    secret: string;
+    qrCodeUrl: string;
+    manualEntryKey: string;
+  }> {
+    return this.authService.setup2FA(req);
+  }
+
+  @AuditLogMeta({
+    action: AuditType.USER,
+    description: 'User attempted to enable 2FA authentication',
+    severity: AuditSeverity.CRITICAL,
+  })
+  @ApiBearerAuth()
+  @UseGuards(JwtUsersGuard)
+  @Post('2fa/enable')
+  async enable2FA(
+    @Body() enable2FADto: Enable2FADto,
+    @Request() req: ApiReq,
+  ): Promise<{
+    message: string;
+    backupCodes: string[];
+  }> {
+    return this.authService.enable2FA(req, enable2FADto);
+  }
+
+  @AuditLogMeta({
+    action: AuditType.USER,
+    description: 'User attempted to disable 2FA authentication',
+    severity: AuditSeverity.CRITICAL,
+  })
+  @ApiBearerAuth()
+  @UseGuards(JwtUsersGuard)
+  @Post('2fa/disable')
+  async disable2FA(
+    @Body() disable2FADto: Disable2FADto,
+    @Request() req: ApiReq,
+  ): Promise<{ message: string }> {
+    return this.authService.disable2FA(req, disable2FADto);
+  }
+
+  @AuditLogMeta({
+    action: AuditType.USER,
+    description: 'User requested new 2FA backup codes',
+    severity: AuditSeverity.CRITICAL,
+  })
+  @ApiBearerAuth()
+  @UseGuards(JwtUsersGuard)
+  @Post('2fa/backup-codes')
+  async generateBackupCodes(
+    @Body() generateBackupCodesDto: GenerateBackupCodesDto,
+    @Request() req: ApiReq,
+  ): Promise<{ backupCodes: string[] }> {
+    return this.authService.generateBackupCodes(req, generateBackupCodesDto);
+  }
+
+  @AuditLogMeta({
+    action: AuditType.USER,
+    description: 'User checked 2FA status',
+    severity: AuditSeverity.WARNING,
+  })
+  @ApiBearerAuth()
+  @UseGuards(JwtUsersGuard)
   @Get('2fa/status')
-  twoFactorStatus(@Request() req: ApiReq) {
-    return this.twoFactorService.status(req.user);
+  async get2FAStatus(@Request() req: ApiReq): Promise<{
+    twoFactorEnabled: boolean;
+    backupCodesRemaining: number;
+  }> {
+    return this.authService.get2FAStatus(req);
+  }
+
+  @AuditLogMeta({
+    action: AuditType.USER,
+    description: 'User attempted to complete 2FA verification during login',
+    severity: AuditSeverity.CRITICAL,
+  })
+  @RateProfile('sensitive')
+  @Post('2fa/verify')
+  async verify2FALogin(
+    @Body() verify2FALoginDto: Verify2FALoginDto,
+    @Request() req: ApiReq,
+  ): Promise<LoginResponseDto> {
+    return this.authService.verify2FALogin(req, verify2FALoginDto);
   }
 }

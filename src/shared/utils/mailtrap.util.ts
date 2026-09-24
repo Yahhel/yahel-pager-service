@@ -1,49 +1,79 @@
-import { MailtrapClient } from 'mailtrap';
 import { configs } from '../configs';
-import { EmailParams, LogLevel } from '../interfaces';
-import { runNextTick } from './helper.util';
-
-let client: MailtrapClient;
-
-const getClient = () => {
-  const { apiKey, inboxId } = configs().mailtrap;
-  client ??= new MailtrapClient({
-    token: apiKey,
-    ...(inboxId && { sandbox: true, testInboxId: inboxId }),
-  });
-  return client;
-};
+import { LogLevel, EmailParams } from '../interfaces';
+import { MailtrapClient } from 'mailtrap';
+import { isTestEnv } from './helper.util';
 
 export const getMailTemplate = () => configs().mailtrap.templates;
 
-export const sendMail = (params: EmailParams) =>
-  runNextTick(async () => {
-    const { to, from, subject, template, templateVariables } = params;
-    const { mailtrap } = configs();
-    const logData = { source: 'MailtrapSendMail', to, subject, template };
-
-    if (!mailtrap.apiKey || !template) {
-      global.dataLogsService?.log(
-        'MailtrapSendMail',
-        { ...logData, message: 'Mailtrap API key or template not configured' },
-        LogLevel.ERROR,
-      );
-      return;
-    }
-
+export const sendMail = ({
+  to,
+  from,
+  subject,
+  template,
+  templateVariables,
+}: EmailParams) => {
+  setImmediate(async () => {
     try {
-      await getClient().send({
-        from: mailtrap.defaultEmailFrom[from.toLowerCase()],
-        to: [{ email: to }],
+      const { mailtrap: mailConfig } = configs();
+      const client = new MailtrapClient({
+        token: mailConfig.apiKey,
+        ...(mailConfig.inboxId && {
+          sandbox: true,
+          testInboxId: mailConfig.inboxId,
+        }),
+      });
+
+      const SENDER_EMAIL = isTestEnv()
+        ? (mailConfig.defaultEmailFrom[
+            from.toString().toLowerCase()
+          ] as string) || from
+        : mailConfig.defaultEmailFrom[from.toString().toLowerCase()];
+
+      const RECIPIENT_EMAIL = to;
+
+      const data = {
+        from: {
+          name: '',
+          email: SENDER_EMAIL,
+        },
+        to: [{ email: RECIPIENT_EMAIL }],
         template_uuid: template,
         template_variables: templateVariables,
-      });
-      global.dataLogsService?.log('MailtrapSendMail', logData, LogLevel.INFO);
-    } catch (e) {
-      global.dataLogsService?.log(
+      };
+
+      const res = await client.send(data);
+
+      global.dataLogsService.log(
         'MailtrapSendMail',
-        { ...logData, message: e.message },
+        {
+          source: 'MailtrapSendMail',
+          to,
+          from,
+          subject,
+          template,
+          templateVariables,
+          ...(typeof res === 'object' ? res : { data: res }),
+        },
+        LogLevel.INFO,
+      );
+
+      return true;
+    } catch (e) {
+      global.dataLogsService.log(
+        'MailtrapSendMail',
+        {
+          source: 'MailtrapSendMail',
+          to,
+          from,
+          subject,
+          template,
+          templateVariables,
+          stack: e.status,
+          message: e.message,
+        },
         LogLevel.ERROR,
       );
+      return false;
     }
   });
+};

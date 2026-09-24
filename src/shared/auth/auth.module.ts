@@ -1,24 +1,36 @@
 import { Module } from '@nestjs/common';
-import { JwtModule } from '@nestjs/jwt';
-import { PassportModule } from '@nestjs/passport';
-import { getJwtSecret } from '../configs';
-import { DBModule } from '../schemas';
-import { AuthStoreService } from './auth-store.service';
-import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
-import { JwtStrategy } from './strategies/jwt.strategy';
-import { TwoFactorService } from './two-factor.service';
+import { AuthController } from './auth.controller';
+import { DBModule } from '@shared/schemas';
+import { JwtModule } from '@nestjs/jwt';
+import { JwtUserStrategy } from './strategies/jwt.user.strategy';
+import { JwtAdminStrategy } from './strategies/jwt.admin.strategy';
+import { PassportModule } from '@nestjs/passport';
+import { JwtAdminsGuard, JwtUsersGuard, RoleGuard } from './guards';
+import { getTokenExpirationSeconds } from '@shared/utils';
 
 @Module({
   imports: [
     DBModule,
     PassportModule,
     JwtModule.registerAsync({
-      useFactory: () => ({ secret: getJwtSecret() }),
+      useFactory: () => ({
+        secret: process.env.JWT_SECRET,
+        signOptions: { expiresIn: getTokenExpirationSeconds() },
+      }),
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, AuthStoreService, TwoFactorService, JwtStrategy],
-  exports: [AuthStoreService],
+  providers: [
+    PassportModule,
+    JwtModule,
+    AuthService,
+    JwtUserStrategy,
+    JwtAdminStrategy,
+    JwtUsersGuard,
+    JwtAdminsGuard,
+    RoleGuard,
+  ],
+  exports: [AuthService],
 })
 export class AuthModule {}

@@ -11,4 +11,4 @@ export * from './mongo.util';
 export * from './error-handler.util';
 export * from './bcrypt.util';
 export * from './mailtrap.util';
-export * from './crypto.util';
+export * from './access-token-validator.util';

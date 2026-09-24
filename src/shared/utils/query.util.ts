@@ -50,7 +50,6 @@ export const buildQuery = (
     if (!value || !value.length) continue;
 
     switch (key) {
-
       /** All Product Queries */
       case 'productIds':
         filters.push({
@@ -118,6 +117,22 @@ export const buildQuery = (
         break;
 
       /** All User Queries */
+      case 'userByIds':
+        filters.push({
+          _id: getInQuery(value),
+        });
+        break;
+      case 'userByRoles':
+        filters.push({ roles: { $in: value } });
+        break;
+      case 'userByStatuses':
+        filters.push({ status: { $in: value } });
+        break;
+      case 'userByEmailVerified':
+        filters.push({
+          emailVerification: '1' === value[0] || 'true' === value[0],
+        });
+        break;
       case 'userSearch':
         searchFields = [
           { key: 'firstName' },
@@ -127,43 +142,53 @@ export const buildQuery = (
         ];
         filters.push({ $or: regexSearches(searchFields, value) });
         break;
-      case 'userRoles':
-        filters.push({ roles: { $in: value } });
-        break;
-      case 'userStatuses':
-        filters.push({ status: { $in: value } });
-        break;
-      case 'userEmailVerified':
-        filters.push({ emailVerified: value[0] === '1' });
-        break;
 
-      /** All Audit Log Queries */
-      case 'auditSearch':
-        searchFields = [{ key: 'requestUrl' }, { key: 'description' }];
+      /** Audit Logs Queries */
+      case 'auditLogSearch':
+        searchFields = [
+          { key: 'actionBy' },
+          { key: 'actionType' },
+          { key: 'serviceName' },
+          { key: 'action' },
+          { key: 'requestUrl' },
+          { key: 'requestMethod' },
+          { key: 'requestActionBy' },
+          { key: 'requestModelType' },
+          { key: 'requestReference' },
+          { key: 'ipAddress' },
+          { key: 'description' },
+        ];
         filters.push({ $or: regexSearches(searchFields, value) });
         break;
-      case 'auditActionBy':
-        filters.push({ actionBy: { $in: value } });
+      case 'auditLogByRequestActionBy':
+        searchFields = [{ key: 'requestActionBy' }];
+        filters.push({ $or: regexSearches(searchFields, value) });
         break;
-      case 'auditTypes':
-        filters.push({ actionType: { $in: value } });
+      case 'auditLogByUserActionBy':
+        searchFields = [{ key: 'actionBy' }];
+        filters.push({ $or: regexSearches(searchFields, value) });
         break;
-      case 'auditSeverities':
-        filters.push({ severity: { $in: value } });
+      case 'auditLogByRequestMethod':
+        filters.push({ requestMethod: { $in: value } });
         break;
-      case 'auditModelTypes':
-        filters.push({ requestModelType: { $in: value } });
+      case 'auditLogByModelType':
+        searchFields = [{ key: 'requestModelType' }];
+        filters.push({ $or: regexSearches(searchFields, value) });
         break;
-      case 'auditMethods':
+      case 'auditLogByRequestReferences':
+        filters.push({ requestReference: { $in: value } });
+        break;
+      case 'auditLogByIds':
+        filters.push({ _id: getInQuery(value) });
+        break;
+      case 'auditLogBySuccess':
         filters.push({
-          requestMethod: { $in: value.map((v) => v.toUpperCase()) },
+          actionSuccessful: { $in: value.map((v) => v === 'true') },
         });
         break;
-      case 'auditStatusCodes':
-        filters.push({ responseStatus: { $in: value.map((v) => +v) } });
-        break;
-      case 'auditSuccessful':
-        filters.push({ actionSuccessful: value[0] === '1' });
+      case 'auditLogByServiceNames':
+        searchFields = [{ key: 'serviceName' }];
+        filters.push({ $or: regexSearches(searchFields, value) });
         break;
 
       /** All Date range use case Queries for all schema models */

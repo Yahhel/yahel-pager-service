@@ -1,7 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
-import { Model } from 'mongoose';
+import { Model, Types } from 'mongoose';
 import * as dateFns from 'date-fns';
-import { randomUUID } from 'crypto';
+import { createHash, randomUUID } from 'crypto';
 import { UAParser } from 'ua-parser-js';
 import {
   Country,
@@ -371,11 +371,9 @@ export const zipFile = async (files: { fileName: string; file: any }[]) => {
   return await zip.generateAsync({ type: 'nodebuffer' });
 };
 
-
 export const arrayIntersection = (arr1: any[], arr2: any[]): any[] => {
   return arr1.filter((value) => arr2.includes(value));
 };
-
 
 export const regexEscape = (str: string) => {
   str = str.replace(/[-\/\\^$*+?.()%|[\]{}]/g, '\\$&');
@@ -409,13 +407,49 @@ export const isTestEnv = () =>
     process.env.NODE_ENV?.trim()?.toLowerCase(),
   );
 
-export const runNextTick = (action: () => Promise<any>) =>
-  setImmediate(() =>
-    action().catch((e) =>
-      global.dataLogsService?.log(
-        'runNextTick',
-        { source: 'runNextTick', message: e.message, stack: e.stack },
-        LogLevel.ERROR,
-      ),
-    ),
+export const getPlatformIssuer = () => {
+  return {
+    issuer: 'https://yahhel.com',
+    issuerEmail: 'tech@yahhel.com',
+    issuerSub: 'YAHHEL-AUTHORIZATION',
+    issuerOriginator: 'AUTHNEXUS',
+    issuerIdPrefix: 'YAHHEL-PLATFORM-',
+    issuerHashPrefix: 'YHL',
+  };
+};
+
+export const convertToKey = (
+  token: string,
+  prefix = '',
+  limit = 20,
+  delimiter = ':',
+) => {
+  const hash = createHash('sha1');
+  const prefixKey = prefix ? prefix + delimiter : '';
+  return (
+    prefixKey +
+    hash
+      .update(token)
+      .digest('hex')
+      .substring(0, limit || 20)
   );
+};
+
+export const getTokenExpirationSeconds = (): number => {
+  return (+process.env.JWT_EXPIRES?.replace(/[A-Za-z]+/g, '') || 10080) * 60;
+};
+
+export const isValidObjectId = (id: string): boolean => {
+  return Types.ObjectId.isValid(id);
+};
+
+export const runNextTick = <T extends any[]>(
+  fn: (...args: T) => Promise<any>,
+  ...args: T
+): void => {
+  setImmediate(() => {
+    fn(...args).catch((err) => {
+      console.error('Error in background task:', err);
+    });
+  });
+};

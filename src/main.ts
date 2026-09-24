@@ -4,17 +4,15 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { Logger } from '@nestjs/common';
-import {
-  AuditContextGuard,
-  AuditLogInterceptor,
-  LogInterceptor,
-} from '@shared/interceptors';
+import { AuditLogInterceptor, LogInterceptor } from '@shared/interceptors';
 import { AllExceptionsFilter } from '@shared/exceptions';
 import { DataLogsService } from '@shared/datalogs';
-import { ThrottlerGuard } from '@nestjs/throttler';
+import { RateLimitGuard } from '@shared/rate-limit';
+import { JwtService } from '@nestjs/jwt';
+import { AuditLogService } from '@shared/audit-logs';
 import { configs } from '@shared/configs';
 import * as cloudinary from 'cloudinary';
-import {  startRedis } from '@shared/utils';
+import { startRedis } from '@shared/utils';
 import * as bodyParser from 'body-parser';
 import { processNigeriaStateLGAs } from '@shared/configs/countries.constant';
 import { ValidatePipe } from '@shared/validators';
@@ -28,8 +26,7 @@ function buildSwaggerDocument(app: any) {
     .setVersion('1.0')
     .addTag('auth')
     .addTag('users')
-    .addTag('admins-users')
-    .addTag('admins-audit-logs')
+    .addTag('admins')
     .addTag('products')
     .build();
 
@@ -41,18 +38,19 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.enableCors();
   const logInterceptor = app.get<LogInterceptor>(LogInterceptor);
-  const auditLogInterceptor = app.get<AuditLogInterceptor>(AuditLogInterceptor);
-  const throttlerGuard = app.get<ThrottlerGuard>(ThrottlerGuard);
-  const auditContextGuard = app.get<AuditContextGuard>(AuditContextGuard);
+  const rateLimitGuard = app.get<RateLimitGuard>(RateLimitGuard);
   const allExceptionsFilter = app.get<AllExceptionsFilter>(AllExceptionsFilter);
+  const auditLogInterceptor = app.get<AuditLogInterceptor>(AuditLogInterceptor);
 
   // Add this to global for easy access anywhere in the app.
+  global.jwtService = app.get<JwtService>(JwtService);
   global.dataLogsService = app.get<DataLogsService>(DataLogsService);
+  global.auditLogService = app.get<AuditLogService>(AuditLogService);
 
   app.useGlobalFilters(allExceptionsFilter);
-  app.useGlobalInterceptors(logInterceptor, auditLogInterceptor);
-  // Audit context first so throttled requests are still audited
-  app.useGlobalGuards(auditContextGuard, throttlerGuard);
+  app.useGlobalInterceptors(logInterceptor);
+  app.useGlobalInterceptors(auditLogInterceptor);
+  app.useGlobalGuards(rateLimitGuard);
   app.useGlobalPipes(new ValidatePipe({ whitelist: true }));
   app.setGlobalPrefix('api');
   app.useLogger(app.get(Logger));
