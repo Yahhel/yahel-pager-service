@@ -3,11 +3,13 @@ import { redisGet, redisSet } from '@shared/utils';
 import { LogLevel } from '@shared/interfaces';
 import * as dateFns from 'date-fns';
 import { ProductsService } from './products/products.service';
+import { FilesService } from './files/files.service';
 
 @Injectable()
 export class CronService {
   constructor(
     private readonly productsService: ProductsService,
+    private readonly filesService: FilesService,
   ) {}
 
   async run(runAlways = false) {
@@ -65,6 +67,9 @@ export class CronService {
       // TODO: Initialize all your cron services here as sample below.
       // ========= PRODUCT CRON =========//
       this.productsService.notifyProductLevel();
+
+      // ========= FILES CRON =========//
+      this.filesService.purgeFiles();
     } catch (e) {
       const source_ = 'UNABLE_TO_RUN_CRON';
       global.dataLogsService.log(

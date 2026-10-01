@@ -12,3 +12,7 @@ export * from './user.type';
 export * from './user.token';
 export * from './token-payload.interface';
 export * from './rate-limit.type';
+export * from './file.type';
+export * from './storage.type';
+export * from './onboarding.type';
+export * from './store.type';

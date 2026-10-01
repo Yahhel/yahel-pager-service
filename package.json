@@ -39,6 +39,7 @@
     "test:e2e": "Test=true jest --config ./test/jest-e2e.json --runInBand --force-exit"
   },
   "dependencies": {
+    "@azure/storage-blob": "^12.33.0",
     "@nestjs/common": "^11.0.4",
     "@nestjs/config": "^4.0.0",
     "@nestjs/core": "^11.0.1",

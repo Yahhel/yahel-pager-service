@@ -9,6 +9,7 @@ import {
   getUserAgent,
   isMobile,
   redactRecord,
+  redactUrl,
   serialize,
 } from '../utils';
 import * as dateFns from 'date-fns';
@@ -183,8 +184,9 @@ export class DataLogsService {
           userType: originalUrl?.includes('admins/')
             ? AccessType.ADMIN
             : AccessType.USER,
-          requestUrl:
+          requestUrl: redactUrl(
             protocol + '://' + headers.host + originalUrl + serialize(query),
+          ),
           logType: resData?.logType || DataLogType.SYSTEM,
           source: isMobile(req) ? ReqType.MOBILE : ReqType.WEB,
         };

@@ -8,7 +8,13 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { CreateUserDto } from '../dtos/create-user.dto';
-import { User, UserDocument, UserModel } from '@shared/schemas';
+import {
+  Store,
+  StoreModel,
+  User,
+  UserDocument,
+  UserModel,
+} from '@shared/schemas';
 import { VerifyEmailDto } from '@shared/dtos/verify-email.dto';
 import { SendEmailVerificationTokenDto } from '@shared/dtos/send-email-verification-token.dto';
 import { JwtService } from '@nestjs/jwt';
@@ -73,6 +79,8 @@ export class AuthService {
   constructor(
     @Inject(User.name)
     private readonly userModel: UserModel,
+    @Inject(Store.name)
+    private readonly storeModel: StoreModel,
     private readonly jwtService: JwtService,
   ) {}
 
@@ -353,6 +361,11 @@ export class AuthService {
         { _id: new Types.ObjectId(req.user._id.toString()) },
         USER_BASIC_FIELDS,
       )
+      .populate({
+        path: 'store',
+        model: this.storeModel,
+        select: 'displayName code status stageTracker',
+      })
       .lean();
 
     if (!user) {

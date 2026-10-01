@@ -1,7 +1,7 @@
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, PayloadTooLargeException } from '@nestjs/common';
 import { Model, Types } from 'mongoose';
 import * as dateFns from 'date-fns';
-import { createHash, randomUUID } from 'crypto';
+import { createHash, randomUUID, webcrypto } from 'crypto';
 import { UAParser } from 'ua-parser-js';
 import {
   Country,
@@ -15,6 +15,7 @@ import * as jszip from 'jszip';
 
 import {
   ApiReq,
+  FileCategory,
   LogLevel,
   Country as CountryType,
   State as StateType,
@@ -111,6 +112,17 @@ export const serialize = (obj: object) => {
       }, [])
       .join('&')
   );
+};
+
+// Behind a proxy (e.g. Render) the original scheme/host arrive in forwarded headers
+export const getBaseUrl = (req: ApiReq): string => {
+  const protocol =
+    req.get('x-forwarded-proto')?.split(',')[0] ||
+    req.get('x-scheme') ||
+    req.protocol;
+  const host =
+    req.get('x-forwarded-host') || req.get('x-host') || req.get('host');
+  return `${protocol}://${host}`;
 };
 
 export const getBaseUrlWithPath = (req, path) => {
@@ -452,4 +464,91 @@ export const runNextTick = <T extends any[]>(
       console.error('Error in background task:', err);
     });
   });
+};
+
+export const convertToFileSizeUnits = (bytes: number) => {
+  if (bytes === 0) {
+    return '0 Bytes';
+  }
+  const k = 1024;
+  const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
+  const i = Math.floor(Math.log(bytes) / Math.log(k));
+  return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+};
+
+export const mimeTypeCategoryMap: Record<string, FileCategory> = {
+  'application/msword': FileCategory.Document,
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document':
+    FileCategory.Document,
+  'application/vnd.oasis.opendocument.text': FileCategory.Document,
+  'application/rtf': FileCategory.Document,
+  'application/vnd.ms-excel': FileCategory.Spreadsheet,
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet':
+    FileCategory.Spreadsheet,
+  'text/csv': FileCategory.Spreadsheet,
+  'application/vnd.ms-powerpoint': FileCategory.Presentation,
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation':
+    FileCategory.Presentation,
+  'application/pdf': FileCategory.PDF,
+  'application/zip': FileCategory.Archive,
+  'application/x-zip-compressed': FileCategory.Archive,
+  'application/x-rar-compressed': FileCategory.Archive,
+  'application/x-7z-compressed': FileCategory.Archive,
+  'application/epub+zip': FileCategory.Document,
+  'text/plain': FileCategory.Text,
+  'text/markdown': FileCategory.Text,
+};
+
+export function getFileCategory(mimeType: string): FileCategory {
+  if (mimeTypeCategoryMap[mimeType]) return mimeTypeCategoryMap[mimeType];
+  const [type] = (mimeType || '').split('/');
+  if (type === 'image') return FileCategory.Image;
+  if (type === 'video') return FileCategory.Video;
+  if (type === 'audio') return FileCategory.Audio;
+  return FileCategory.Other;
+}
+
+export const getMaxFileSize = () =>
+  Number(process.env.MAX_FILE_SIZE) || 100 * 1024 * 1024; // Default 100MB
+
+export const validateFileSizes = (files: Express.Multer.File[]): void => {
+  const maxFileSize = getMaxFileSize();
+  const maxFileSizeMB = Math.floor(maxFileSize / (1024 * 1024));
+
+  for (const file of files) {
+    if (file.size > maxFileSize) {
+      const fileSizeMB = Math.floor(file.size / (1024 * 1024));
+      throw new PayloadTooLargeException(
+        `File "${file.originalname}" exceeds maximum allowed size of ${maxFileSizeMB}MB. Current size: ${fileSizeMB}MB`,
+      );
+    }
+  }
+};
+
+// WebCrypto digest runs on the libuv thread pool, so large files don't block the event loop
+export const generateChecksumFromBuffer = async (
+  buffer: Buffer,
+): Promise<string> => {
+  const digest = await webcrypto.subtle.digest('SHA-256', buffer);
+  return Buffer.from(digest).toString('hex');
+};
+
+export const collectFileIds = (data: any, fields: string[]): string[] => {
+  const fileIds: Set<string> = new Set();
+  const addIfValid = (value: any) => {
+    if (typeof value === 'string' && isValidObjectId(value)) fileIds.add(value);
+  };
+
+  for (const fieldPath of fields) {
+    const value = fieldPath
+      .split('.')
+      .reduce((result, key) => result?.[key], data);
+
+    if (Array.isArray(value)) value.forEach(addIfValid);
+    else if (value && typeof value === 'object')
+      Object.values(value).forEach(addIfValid);
+    else addIfValid(value);
+  }
+
+  return Array.from(fileIds);
 };

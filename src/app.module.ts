@@ -13,6 +13,8 @@ import { JwtUserStrategy } from '@shared/auth/strategies/jwt.user.strategy';
 import { JwtAdminStrategy } from '@shared/auth/strategies/jwt.admin.strategy';
 import { PassportModule } from '@nestjs/passport';
 import { ProductsModule } from './products';
+import { FileModule } from './shared/file/file.module';
+import { StoresModule } from './store/stores.module';
 
 @Module({
   imports: [
@@ -23,6 +25,8 @@ import { ProductsModule } from './products';
     AuthModule,
     UsersModule,
     AuditLogModule,
+    FileModule,
+    StoresModule,
     ProductsModule,
   ],
   controllers: [AppController],

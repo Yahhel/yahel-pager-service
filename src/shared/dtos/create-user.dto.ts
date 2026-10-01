@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform } from 'class-transformer';
 import {
+  IsBoolean,
   IsDefined,
   IsEmail,
   IsNotEmpty,
@@ -37,4 +38,12 @@ export class CreateUserDto {
   @IsString()
   @IsNotEmpty()
   phone?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'True when signing up as a creator. The account is still created as a buyer; the seller role is added when the creator profile is set up.',
+  })
+  @IsOptional()
+  @IsBoolean()
+  sellerIntent?: boolean;
 }

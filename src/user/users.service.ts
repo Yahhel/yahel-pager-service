@@ -55,22 +55,6 @@ export class UserService {
     return updatedUser;
   }
 
-  async becomeSeller(req: ApiReq) {
-    const updatedUser = await this.userModel.findOneAndUpdate(
-      { _id: new Types.ObjectId(req.user._id), emailVerification: true },
-      { $addToSet: { roles: RoleType.SELLER } },
-      { new: true, lean: true, projection: USER_BASIC_FIELDS },
-    );
-
-    if (!updatedUser) {
-      throw new BadRequestException(
-        'Verify your email before becoming a seller',
-      );
-    }
-
-    return updatedUser;
-  }
-
   async findAll(req: ApiReq) {
     const { page, currentLimit, skip, order, dbQuery } = getPagingParams(req);
 

@@ -12,8 +12,9 @@ import { JwtService } from '@nestjs/jwt';
 import { AuditLogService } from '@shared/audit-logs';
 import { configs } from '@shared/configs';
 import * as cloudinary from 'cloudinary';
-import { startRedis } from '@shared/utils';
+import { getMaxFileSize, startRedis } from '@shared/utils';
 import * as bodyParser from 'body-parser';
+import * as multer from 'multer';
 import { processNigeriaStateLGAs } from '@shared/configs/countries.constant';
 import { ValidatePipe } from '@shared/validators';
 
@@ -27,6 +28,8 @@ function buildSwaggerDocument(app: any) {
     .addTag('auth')
     .addTag('users')
     .addTag('admins')
+    .addTag('files')
+    .addTag('stores')
     .addTag('products')
     .build();
 
@@ -46,6 +49,25 @@ async function bootstrap() {
   global.jwtService = app.get<JwtService>(JwtService);
   global.dataLogsService = app.get<DataLogsService>(DataLogsService);
   global.auditLogService = app.get<AuditLogService>(AuditLogService);
+
+  // Apply multer middleware globally to parse multipart/form-data before interceptors
+  const upload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: getMaxFileSize() },
+  }).any();
+  app.use((req, res, next) =>
+    upload(req, res, (err) => {
+      if (!err) return next();
+      const maxFileSizeMB = Math.floor(getMaxFileSize() / (1024 * 1024));
+      const isTooLarge = err.code === 'LIMIT_FILE_SIZE';
+      res.status(isTooLarge ? 413 : 400).json({
+        statusCode: isTooLarge ? 413 : 400,
+        message: isTooLarge
+          ? `File exceeds maximum allowed size of ${maxFileSizeMB}MB`
+          : err.message,
+      });
+    }),
+  );
 
   app.useGlobalFilters(allExceptionsFilter);
   app.useGlobalInterceptors(logInterceptor);

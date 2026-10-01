@@ -1,4 +1,4 @@
-import { redactRecord } from './redact.util';
+import { redactRecord, redactUrl } from './redact.util';
 
 describe('redactRecord', () => {
   it('redacts sensitive keys at any depth', () => {
@@ -29,5 +29,24 @@ describe('redactRecord', () => {
     const input = { password: 'x' };
     redactRecord(input);
     expect(input.password).toBe('x');
+  });
+});
+
+describe('redactUrl', () => {
+  it('strips signed file tokens from URLs', () => {
+    expect(
+      redactUrl(
+        'https://api.pager.com/api/v1/files/stream/abc?fk=a1b2%3Ac3&x=1',
+      ),
+    ).toBe('https://api.pager.com/api/v1/files/stream/abc?fk=__REDACTED__&x=1');
+    expect(redactUrl('/api/v1/files/stream/abc?x=1&fk=secret')).toBe(
+      '/api/v1/files/stream/abc?x=1&fk=__REDACTED__',
+    );
+  });
+
+  it('redacts signed links in response bodies', () => {
+    expect(redactRecord({ public_url: 'https://x/stream/1?fk=t' })).toEqual({
+      public_url: '__REDACTED__',
+    });
   });
 });

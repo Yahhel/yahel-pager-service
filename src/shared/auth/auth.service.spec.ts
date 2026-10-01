@@ -78,7 +78,7 @@ describe('AuthService', () => {
       generateAuthCode: jest.fn().mockResolvedValue('123456'),
       validateAuthCode: jest.fn(),
     };
-    service = new AuthService(userModel, jwtService);
+    service = new AuthService(userModel, {} as any, jwtService);
   });
 
   describe('login', () => {

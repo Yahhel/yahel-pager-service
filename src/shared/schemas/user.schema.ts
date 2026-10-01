@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { HydratedDocument, Model } from 'mongoose';
+import { HydratedDocument, Model, Types } from 'mongoose';
 import { randomInt } from 'crypto';
 import {
   EmailFrom,
@@ -108,6 +108,16 @@ export class User {
 
   @Prop()
   backupCodes: string[];
+
+  @Prop({ type: Number, default: 0 })
+  storageUsedBytes: number;
+
+  // Set when the user signs up as a creator, so the app can route them to onboarding
+  @Prop({ type: Boolean, default: false })
+  sellerIntent: boolean;
+
+  @Prop({ index: true, type: Types.ObjectId, ref: 'Store', default: null })
+  store?: Types.ObjectId;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

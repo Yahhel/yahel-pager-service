@@ -34,4 +34,4 @@ export const PasswordChangeReasons = [
 ];
 
 export const USER_BASIC_FIELDS =
-  'firstName lastName email phone roles status emailVerification passwordResetStatus twoFactorEnabled lastLoginDate createdAt updatedAt';
+  'firstName lastName email phone roles status emailVerification passwordResetStatus twoFactorEnabled storageUsedBytes sellerIntent store lastLoginDate createdAt updatedAt';

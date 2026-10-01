@@ -108,3 +108,8 @@ export enum ApprovalStatus {
 }
 
 export const ApprovalStatuses = Object.values(ApprovalStatus);
+
+export enum ModelEntity {
+  USER = 'User',
+  STORE = 'Store',
+}

@@ -1,3 +1,5 @@
+import { StorageProvider } from '../interfaces/storage.type';
+
 export const configs = () => ({
   cloudinary: {
     cloud_name: process.env.CLOUDINARY_NAME,
@@ -50,6 +52,16 @@ export const configs = () => ({
       generalPasswordChangeSuccess: '',
       adminInvitation: '',
     },
+  },
+  storage: {
+    provider: (process.env.STORAGE_PROVIDER ||
+      StorageProvider.AZURE) as StorageProvider,
+    deletedFileRetentionDays: +process.env.FILE_DELETED_RETENTION_DAYS || 30,
+    unattachedFileRetentionHours:
+      +process.env.FILE_UNATTACHED_RETENTION_HOURS || 24,
+    fileLinkTtlSeconds: +process.env.FILE_LINK_TTL_SECONDS || 300,
+    // Audio/video links are reusable because players make many range requests
+    mediaLinkTtlSeconds: +process.env.FILE_MEDIA_LINK_TTL_SECONDS || 2 * 3600,
   },
   app: {
     appName: process.env.PLATFORM_STARTER_NAME || 'Yahhel',

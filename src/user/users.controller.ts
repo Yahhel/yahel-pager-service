@@ -1,11 +1,4 @@
-import {
-  Body,
-  Controller,
-  Post,
-  Put,
-  Request,
-  UseGuards,
-} from '@nestjs/common';
+import { Body, Controller, Put, Request, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { JwtUsersGuard, RoleGuard } from '@shared/auth/guards';
 import { AuditLogMeta } from '@shared/decorators';
@@ -31,15 +24,5 @@ export class UserController {
     @Body() payload: UserUpdateDto,
   ) {
     return this.userService.updateUser(req, payload);
-  }
-
-  @AuditLogMeta({
-    action: AuditType.USER,
-    description: 'User upgraded their account to seller',
-    severity: AuditSeverity.CRITICAL,
-  })
-  @Post('become-seller')
-  async becomeSeller(@Request() req: ApiReq) {
-    return this.userService.becomeSeller(req);
   }
 }

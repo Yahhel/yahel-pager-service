@@ -6,9 +6,13 @@ export const redisUtilMock = {
   isRedisConnected: true,
   redisClient: null,
   startRedis: jest.fn(),
-  redisSet: jest.fn(async (key: string, value: any) => {
-    store.set(key, JSON.parse(JSON.stringify(value)));
-  }),
+  redisSet: jest.fn(
+    async (key: string, value: any, options?: Record<string, any>) => {
+      if (options?.NX && store.has(key)) return null;
+      store.set(key, JSON.parse(JSON.stringify(value)));
+      return 'OK';
+    },
+  ),
   redisGet: jest.fn(async (key: string) => store.get(key) ?? null),
   redisDel: jest.fn(async (key: string) => {
     store.delete(key);

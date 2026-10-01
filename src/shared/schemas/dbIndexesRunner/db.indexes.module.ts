@@ -5,6 +5,10 @@ import {
   DataLog,
   DataLogDocument,
   DBModule,
+  File,
+  FileModel,
+  Store,
+  StoreModel,
   User,
   UserModel,
 } from '../index';
@@ -24,6 +28,10 @@ export class DbIndexesModule {
     private readonly userModel: UserModel,
     @Inject(AuditLog.name)
     private readonly auditLogModel: AuditLogModel,
+    @Inject(File.name)
+    private readonly fileModel: FileModel,
+    @Inject(Store.name)
+    private readonly storeModel: StoreModel,
   ) {}
 
   async runIndexes() {
@@ -31,6 +39,8 @@ export class DbIndexesModule {
       this.dataLogModel.syncIndexes(),
       this.userModel.syncIndexes(),
       this.auditLogModel.syncIndexes(),
+      this.fileModel.syncIndexes(),
+      this.storeModel.syncIndexes(),
     ] as any);
   }
 }

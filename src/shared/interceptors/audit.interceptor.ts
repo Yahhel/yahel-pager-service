@@ -17,7 +17,7 @@ import {
   AuditMetaData,
   AuditSeverity,
 } from '../interfaces';
-import { isMobile, redactRecord } from '../utils';
+import { isMobile, redactRecord, redactUrl } from '../utils';
 import { AuditLogModel } from '@shared/schemas/audit.log.schema';
 import { AUDIT_META_KEY } from '@shared/decorators';
 import { Reflector } from '@nestjs/core';
@@ -61,7 +61,9 @@ export class AuditLogInterceptor implements NestInterceptor {
 
     const isLog = isAuditLogEnabled();
 
-    const url = `${req.protocol}://${req.headers.host}${req.originalUrl}`;
+    const url = redactUrl(
+      `${req.protocol}://${req.headers.host}${req.originalUrl}`,
+    );
     const requestReference = randomUUID();
     req.headers.requestReference = requestReference;
 

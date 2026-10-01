@@ -8,7 +8,7 @@ import {
 import { HttpAdapterHost } from '@nestjs/core';
 import { ApiReq, AuditSeverity, AuditType, LogLevel } from '../interfaces';
 import { randomUUID } from 'crypto';
-import { getIpAddress } from '../utils';
+import { getIpAddress, redactUrl } from '../utils';
 import { isAuditLogEnabled } from '../interceptors/audit.interceptor';
 
 @Catch()
@@ -54,7 +54,9 @@ export class AllExceptionsFilter implements ExceptionFilter {
     if (!req.route || req.headers.requestReference || !isAuditLogEnabled())
       return;
 
-    const url = `${req.protocol}://${req.headers.host}${req.originalUrl}`;
+    const url = redactUrl(
+      `${req.protocol}://${req.headers.host}${req.originalUrl}`,
+    );
     global.auditLogService?.create({
       actionBy: req.user?._id ?? 'UNKNOWN',
       requestActionBy: req.user?._id ?? 'UNKNOWN',
@@ -113,7 +115,7 @@ export class AllExceptionsFilter implements ExceptionFilter {
       statusCode: httpStatus,
       message,
       timestamp: new Date().toISOString(),
-      requestUrl: httpAdapter.getRequestUrl(ctx.getRequest()),
+      requestUrl: redactUrl(httpAdapter.getRequestUrl(ctx.getRequest())),
     };
 
     if ((exception as any)?.response?.validationErrors) {

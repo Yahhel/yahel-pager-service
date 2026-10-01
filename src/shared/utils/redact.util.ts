@@ -27,6 +27,8 @@ const redactedKeys = new Set([
   'secret',
   'manualEntryKey',
   'qrCodeUrl',
+  'fk',
+  'public_url',
 ]);
 
 export const redactRecord = (data) => {
@@ -44,3 +46,7 @@ export const redactRecord = (data) => {
     return data;
   }
 };
+
+// Signed file tokens travel in the query string, so strip them from logged URLs
+export const redactUrl = (url: string) =>
+  url?.replace(/([?&]fk=)[^&#]*/gi, `$1${redactStr}`);

@@ -12,3 +12,6 @@ export * from './error-handler.util';
 export * from './bcrypt.util';
 export * from './mailtrap.util';
 export * from './access-token-validator.util';
+export * from './file-validation.util';
+export * from './storage.util';
+export * from './token.util';
