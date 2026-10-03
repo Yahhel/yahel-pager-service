@@ -116,8 +116,8 @@ export class User {
   @Prop({ type: Boolean, default: false })
   sellerIntent: boolean;
 
-  @Prop({ index: true, type: Types.ObjectId, ref: 'Store', default: null })
-  store?: Types.ObjectId;
+  @Prop({ index: true, type: Types.ObjectId, ref: 'Business', default: null })
+  business?: Types.ObjectId;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

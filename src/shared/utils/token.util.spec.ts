@@ -92,8 +92,12 @@ describe('file token util', () => {
 
   it('rejects tampered tokens and tokens for another file', async () => {
     const token = buildFileToken(FILE_ID);
+    // Flip one hex character of the ciphertext so it always differs
+    const index = token.length - 2;
     const tampered =
-      token.slice(0, -2) + (token.endsWith('0') ? '1' : '0') + token.slice(-1);
+      token.slice(0, index) +
+      (token[index] === 'a' ? 'b' : 'a') +
+      token.slice(index + 1);
     await expect(
       validateAndConsumeFileToken(tampered, FILE_ID),
     ).rejects.toThrow(UnauthorizedException);

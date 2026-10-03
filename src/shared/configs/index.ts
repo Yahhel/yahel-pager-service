@@ -1,6 +1,10 @@
 import { StorageProvider } from '../interfaces/storage.type';
 
 export const configs = () => ({
+  paystack: {
+    secret: process.env.PAYSTACK_SECRET,
+    baseUrl: process.env.PAYSTACK_BASE_URL || 'https://api.paystack.co',
+  },
   cloudinary: {
     cloud_name: process.env.CLOUDINARY_NAME,
     api_key: process.env.CLOUDINARY_KEY,
@@ -51,6 +55,7 @@ export const configs = () => ({
       generalPasswordChange: '',
       generalPasswordChangeSuccess: '',
       adminInvitation: '',
+      payoutAccountChanged: '',
     },
   },
   storage: {

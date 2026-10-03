@@ -15,4 +15,5 @@ export * from './rate-limit.type';
 export * from './file.type';
 export * from './storage.type';
 export * from './onboarding.type';
-export * from './store.type';
+export * from './business.type';
+export * from './paystack.type';

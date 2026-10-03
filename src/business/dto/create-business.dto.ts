@@ -48,7 +48,7 @@ export class SocialLinksDto {
   linkedin?: string;
 }
 
-export class CreateStoreDto {
+export class CreateBusinessDto {
   @ApiProperty()
   @IsDefined()
   @IsString()

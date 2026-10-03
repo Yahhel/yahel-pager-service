@@ -6,20 +6,20 @@ import {
   ApiReq,
   AuditSeverity,
   AuditType,
-  StoreStatuses,
+  BusinessStatuses,
 } from '@shared/interfaces';
-import { StoreService } from './stores.service';
+import { BusinessService } from './businesses.service';
 
 @ApiTags('admins')
 @ApiBearerAuth()
 @UseGuards(JwtAdminsGuard)
-@Controller('v1/admins/stores')
-export class StoresAdminsController {
-  constructor(private readonly storeService: StoreService) {}
+@Controller('v1/admins/businesses')
+export class BusinessesAdminsController {
+  constructor(private readonly businessService: BusinessService) {}
 
   @AuditLogMeta({
     action: AuditType.ADMIN,
-    description: 'Admin retrieved stores',
+    description: 'Admin retrieved businesses',
     severity: AuditSeverity.INFO,
   })
   @ApiQuery({ name: 'limit', required: false, type: String } as any)
@@ -31,35 +31,35 @@ export class StoresAdminsController {
     enum: ['ASC', 'DESC'],
   } as any)
   @ApiQuery({
-    name: 'storeSearch',
+    name: 'businessSearch',
     required: false,
     type: String,
     description: 'fuzzy search on display name or handle',
   } as any)
   @ApiQuery({
-    name: 'storeByStatuses',
+    name: 'businessByStatuses',
     required: false,
     type: String,
-    description: `comma separated: ${StoreStatuses}`,
+    description: `comma separated: ${BusinessStatuses}`,
   } as any)
   @ApiQuery({
-    name: 'storeDateRange',
+    name: 'businessDateRange',
     required: false,
     type: String,
     description: 'e.g: 2020-11-12,2022-11-15',
   } as any)
   @Get()
   findAll(@Request() req: ApiReq) {
-    return this.storeService.findAll(req);
+    return this.businessService.findAll(req);
   }
 
   @AuditLogMeta({
     action: AuditType.ADMIN,
-    description: 'Admin retrieved a store',
+    description: 'Admin retrieved a business',
     severity: AuditSeverity.INFO,
   })
-  @Get(':storeId')
-  findOne(@Param('storeId') storeId: string) {
-    return this.storeService.findOne(storeId);
+  @Get(':businessId')
+  findOne(@Param('businessId') businessId: string) {
+    return this.businessService.findOne(businessId);
   }
 }

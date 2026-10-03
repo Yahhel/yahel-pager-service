@@ -111,5 +111,5 @@ export const ApprovalStatuses = Object.values(ApprovalStatus);
 
 export enum ModelEntity {
   USER = 'User',
-  STORE = 'Store',
+  BUSINESS = 'Business',
 }

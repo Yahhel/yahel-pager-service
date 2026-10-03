@@ -28,6 +28,10 @@ const redactedKeys = new Set([
   'manualEntryKey',
   'qrCodeUrl',
   'fk',
+  'accountNumber',
+  'account_number',
+  'recipientCode',
+  'recipient_code',
   'public_url',
 ]);
 

@@ -29,7 +29,8 @@ function buildSwaggerDocument(app: any) {
     .addTag('users')
     .addTag('admins')
     .addTag('files')
-    .addTag('stores')
+    .addTag('businesses')
+    .addTag('shareables')
     .addTag('products')
     .build();
 

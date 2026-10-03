@@ -319,6 +319,49 @@ describe('AuthService', () => {
     });
   });
 
+  describe('verifyUserCredentials (step-up for sensitive changes)', () => {
+    const secret = speakeasy.generateSecret({ length: 20 }).base32;
+    const leanResult = (value: any) => ({ lean: () => Promise.resolve(value) });
+
+    it('rejects a missing or wrong password', async () => {
+      userModel.findById.mockReturnValue(leanResult(buildUser()));
+      await expect(service.verifyUserCredentials('u1')).rejects.toThrow(
+        'Invalid password',
+      );
+      await expect(
+        service.verifyUserCredentials('u1', 'Wrong#123'),
+      ).rejects.toThrow('Invalid password');
+    });
+
+    it('passes with the right password when 2FA is off', async () => {
+      userModel.findById.mockReturnValue(leanResult(buildUser()));
+      await expect(
+        service.verifyUserCredentials('u1', 'Secret#123'),
+      ).resolves.toBeUndefined();
+    });
+
+    it('also requires a valid 2FA code when 2FA is on', async () => {
+      userModel.findById.mockReturnValue(
+        leanResult(
+          buildUser({ twoFactorEnabled: true, twoFactorSecret: secret }),
+        ),
+      );
+      await expect(
+        service.verifyUserCredentials('u1', 'Secret#123'),
+      ).rejects.toThrow('2FA code is required');
+      await expect(
+        service.verifyUserCredentials('u1', 'Secret#123', '000000'),
+      ).rejects.toThrow('Invalid 2FA code');
+      await expect(
+        service.verifyUserCredentials(
+          'u1',
+          'Secret#123',
+          speakeasy.totp({ secret, encoding: 'base32' }),
+        ),
+      ).resolves.toBeUndefined();
+    });
+  });
+
   describe('2FA', () => {
     const secret = speakeasy.generateSecret({ length: 20 }).base32;
 

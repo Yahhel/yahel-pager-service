@@ -143,12 +143,12 @@ export const buildQuery = (
         filters.push({ $or: regexSearches(searchFields, value) });
         break;
 
-      /** All Store Queries */
-      case 'storeSearch':
+      /** All Business Queries */
+      case 'businessSearch':
         searchFields = [{ key: 'displayName' }, { key: 'code' }];
         filters.push({ $or: regexSearches(searchFields, value) });
         break;
-      case 'storeByStatuses':
+      case 'businessByStatuses':
         filters.push({ status: { $in: value } });
         break;
 
@@ -206,7 +206,7 @@ export const buildQuery = (
       case 'productDateRange':
       case 'dataLogDateRange':
       case 'userDateRange':
-      case 'storeDateRange':
+      case 'businessDateRange':
       case 'auditLogDateRange':
         filters.push({
           $or: getDateRangeQuery(value, true),

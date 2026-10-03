@@ -7,7 +7,7 @@ import { Product, ProductSchema } from './product.schema';
 import { User, UserSchema } from './user.schema';
 import { AuditLog, AuditLogSchema } from './audit.log.schema';
 import { File, FileSchema } from './file.schema';
-import { Store, StoreSchema } from './store.schema';
+import { Business, BusinessSchema } from './business.schema';
 
 // All Schema Models
 export * from './data.log.schema';
@@ -15,13 +15,13 @@ export * from './product.schema';
 export * from './user.schema';
 export * from './audit.log.schema';
 export * from './file.schema';
-export * from './store.schema';
+export * from './business.schema';
 
 const SCHEMA_LIST = [
   { name: Product.name, schema: ProductSchema, dbPrefix: 'APP' },
   { name: User.name, schema: UserSchema, dbPrefix: 'APP' },
   { name: File.name, schema: FileSchema, dbPrefix: 'APP' },
-  { name: Store.name, schema: StoreSchema, dbPrefix: 'APP' },
+  { name: Business.name, schema: BusinessSchema, dbPrefix: 'APP' },
   { name: DataLog.name, schema: DataLogSchema, dbPrefix: 'LOG' },
   { name: AuditLog.name, schema: AuditLogSchema, dbPrefix: 'LOG' },
 ];

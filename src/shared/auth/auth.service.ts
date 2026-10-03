@@ -9,8 +9,8 @@ import {
 } from '@nestjs/common';
 import { CreateUserDto } from '../dtos/create-user.dto';
 import {
-  Store,
-  StoreModel,
+  Business,
+  BusinessModel,
   User,
   UserDocument,
   UserModel,
@@ -79,8 +79,8 @@ export class AuthService {
   constructor(
     @Inject(User.name)
     private readonly userModel: UserModel,
-    @Inject(Store.name)
-    private readonly storeModel: StoreModel,
+    @Inject(Business.name)
+    private readonly businessModel: BusinessModel,
     private readonly jwtService: JwtService,
   ) {}
 
@@ -109,7 +109,7 @@ export class AuthService {
     return { tokenType, platformClaim };
   }
 
-  private async storeTokenData(data: UserTokenData, expireSeconds: number) {
+  private async businessTokenData(data: UserTokenData, expireSeconds: number) {
     const [key, refreshKey, revokeKey] = getTokenKeys(data);
     const userTokenKeys = getUserTokenKeys(data.user._id);
 
@@ -162,7 +162,7 @@ export class AuthService {
       tokenType,
     };
 
-    await this.storeTokenData(data, expireDurationSeconds);
+    await this.businessTokenData(data, expireDurationSeconds);
 
     runNextTick(async () => {
       await this.userModel.updateOne(
@@ -233,6 +233,33 @@ export class AuthService {
     }
 
     return { success: true, message: 'Password confirmed successfully' };
+  }
+
+  // Step-up check for sensitive changes (e.g. payout account): password, plus 2FA when enabled
+  async verifyUserCredentials(
+    userId: string,
+    password?: string,
+    twoFactorToken?: string,
+  ): Promise<void> {
+    const user = await this.userModel.findById(userId).lean();
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    const isPasswordMatch =
+      !!password && (await BcryptUtil.verify(password, user.password));
+    if (!isPasswordMatch) {
+      throw new BadRequestException('Invalid password');
+    }
+
+    if (user.twoFactorEnabled) {
+      if (!twoFactorToken) {
+        throw new BadRequestException('2FA code is required');
+      }
+      if (!(await this.verify2FAToken(user, twoFactorToken))) {
+        throw new BadRequestException('Invalid 2FA code');
+      }
+    }
   }
 
   async sendEmailVerificationToken(args: SendEmailVerificationTokenDto) {
@@ -335,7 +362,7 @@ export class AuthService {
     await Promise.all([
       redisDelMany([oldKey, oldRefreshKey]),
       redisSRem(getUserTokenKeys(tokenData.user._id), [oldKey, oldRefreshKey]),
-      this.storeTokenData(data, expireDurationSeconds),
+      this.businessTokenData(data, expireDurationSeconds),
     ] as any);
 
     return {
@@ -362,8 +389,8 @@ export class AuthService {
         USER_BASIC_FIELDS,
       )
       .populate({
-        path: 'store',
-        model: this.storeModel,
+        path: 'business',
+        model: this.businessModel,
         select: 'displayName code status stageTracker',
       })
       .lean();

@@ -7,8 +7,8 @@ import {
   DBModule,
   File,
   FileModel,
-  Store,
-  StoreModel,
+  Business,
+  BusinessModel,
   User,
   UserModel,
 } from '../index';
@@ -30,8 +30,8 @@ export class DbIndexesModule {
     private readonly auditLogModel: AuditLogModel,
     @Inject(File.name)
     private readonly fileModel: FileModel,
-    @Inject(Store.name)
-    private readonly storeModel: StoreModel,
+    @Inject(Business.name)
+    private readonly businessModel: BusinessModel,
   ) {}
 
   async runIndexes() {
@@ -40,7 +40,7 @@ export class DbIndexesModule {
       this.userModel.syncIndexes(),
       this.auditLogModel.syncIndexes(),
       this.fileModel.syncIndexes(),
-      this.storeModel.syncIndexes(),
+      this.businessModel.syncIndexes(),
     ] as any);
   }
 }

@@ -11,7 +11,7 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { ValidateDynamicObject } from '@shared/validators';
-import { SocialLinksDto } from './create-store.dto';
+import { SocialLinksDto } from './create-business.dto';
 
 export class StageTrackerEntryDto {
   @ApiProperty({ required: true })
@@ -30,7 +30,7 @@ export class StageTrackerEntryDto {
   completed?: boolean;
 }
 
-export class UpdateStoreDto {
+export class UpdateBusinessDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()

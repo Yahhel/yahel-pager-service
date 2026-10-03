@@ -14,7 +14,8 @@ import { JwtAdminStrategy } from '@shared/auth/strategies/jwt.admin.strategy';
 import { PassportModule } from '@nestjs/passport';
 import { ProductsModule } from './products';
 import { FileModule } from './shared/file/file.module';
-import { StoresModule } from './store/stores.module';
+import { BusinessesModule } from './business/businesses.module';
+import { ShareablesModule } from '@shared/sharebles';
 
 @Module({
   imports: [
@@ -26,7 +27,8 @@ import { StoresModule } from './store/stores.module';
     UsersModule,
     AuditLogModule,
     FileModule,
-    StoresModule,
+    BusinessesModule,
+    ShareablesModule,
     ProductsModule,
   ],
   controllers: [AppController],

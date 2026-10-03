@@ -7,7 +7,7 @@ export class UploadFileDto {
     type: Boolean,
     default: true,
     description:
-      'Private files (e.g. paid deliverables) are only served to their owner. Set false for public assets like store logos and product covers.',
+      'Private files (e.g. paid deliverables) are only served to their owner. Set false for public assets like business logos and product covers.',
   })
   @IsOptional()
   @Transform(({ value }) => value !== false && value !== 'false')

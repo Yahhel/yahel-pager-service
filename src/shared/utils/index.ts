@@ -15,3 +15,4 @@ export * from './access-token-validator.util';
 export * from './file-validation.util';
 export * from './storage.util';
 export * from './token.util';
+export * from './paystack.util';

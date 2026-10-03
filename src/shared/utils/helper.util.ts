@@ -12,6 +12,7 @@ import {
   ICity,
 } from 'country-state-city';
 import * as jszip from 'jszip';
+import axios from 'axios';
 
 import {
   ApiReq,
@@ -551,4 +552,54 @@ export const collectFileIds = (data: any, fields: string[]): string[] => {
   }
 
   return Array.from(fileIds);
+};
+
+// Ported from worksync without its console logging (it printed auth headers) and with errors rethrown
+export function axiosRequest(
+  defaultHeader = {},
+  options?: { timeout?: number },
+  baseUrl?: string,
+) {
+  return (
+    url: string,
+    payload: Record<string, any> = {},
+    method: 'POST' | 'GET' | 'PUT' | 'PATCH' | 'DELETE' = 'GET',
+    header?: Record<string, any>,
+  ) => {
+    if (baseUrl) {
+      url = `${baseUrl.trim().replace(/\/$/, '')}/${url.trim().replace(/^\//, '')}`;
+    }
+    const isQueryMethod = method === 'GET' || method === 'DELETE';
+
+    return axios({
+      url,
+      method,
+      headers: { ...defaultHeader, ...(header || {}) },
+      timeout: options?.timeout ?? 140000,
+      ...(isQueryMethod ? { params: payload } : { data: payload }),
+    }).then((jsonResponse) => jsonResponse?.data);
+  };
+}
+
+const nameTokens = (name: string) =>
+  (name || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z\s]/g, ' ')
+    .split(/\s+/)
+    .filter(Boolean);
+
+// Bank names come in any order (e.g. "LOVELACE ADA MARY"), so compare tokens rather than strings
+export const isAccountNameMatch = (
+  accountName: string,
+  firstName: string,
+  lastName: string,
+) => {
+  const accountTokens = nameTokens(accountName);
+  const required = [...nameTokens(firstName), ...nameTokens(lastName)];
+  return (
+    required.length > 0 &&
+    required.every((token) => accountTokens.includes(token))
+  );
 };
