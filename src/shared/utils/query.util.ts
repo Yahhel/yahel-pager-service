@@ -152,6 +152,31 @@ export const buildQuery = (
         filters.push({ status: { $in: value } });
         break;
 
+      /** All Category Queries */
+      case 'categoryByIds':
+        filters.push({
+          _id: getInQuery(value),
+        });
+        break;
+      case 'categoryByParentIds':
+        filters.push({ parentCategory: getInQuery(value) });
+        break;
+      case 'categoryByCode':
+        filters.push({ code: { $in: value } });
+        break;
+      case 'categoryByModules':
+        filters.push({ module: { $in: value } });
+        break;
+      case 'categoryByActive':
+        filters.push({
+          isActive: '1' === value[0] || 'true' === value[0],
+        });
+        break;
+      case 'categorySearch':
+        searchFields = [{ key: 'name' }, { key: 'description' }];
+        filters.push({ $or: regexSearches(searchFields, value) });
+        break;
+
       /** Audit Logs Queries */
       case 'auditLogSearch':
         searchFields = [
@@ -207,6 +232,7 @@ export const buildQuery = (
       case 'dataLogDateRange':
       case 'userDateRange':
       case 'businessDateRange':
+      case 'categoryDateRange':
       case 'auditLogDateRange':
         filters.push({
           $or: getDateRangeQuery(value, true),

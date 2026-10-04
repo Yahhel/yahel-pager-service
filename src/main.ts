@@ -31,6 +31,7 @@ function buildSwaggerDocument(app: any) {
     .addTag('files')
     .addTag('businesses')
     .addTag('shareables')
+    .addTag('categories')
     .addTag('products')
     .build();
 

@@ -1,7 +1,12 @@
-import { Controller, Get } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
+import { Controller, Get, Query } from '@nestjs/common';
+import { ApiQuery, ApiTags } from '@nestjs/swagger';
 import { AuditLogMeta } from '@shared/decorators';
-import { AuditSeverity, AuditType } from '@shared/interfaces';
+import {
+  AuditSeverity,
+  AuditType,
+  CategoryEntityModules,
+  EntityModule,
+} from '@shared/interfaces';
 import { ShareablesService } from './shareables.service';
 
 @ApiTags('shareables')
@@ -17,5 +22,23 @@ export class ShareablesController {
   @Get('banks/public')
   async getBanks() {
     return this.shareablesService.getBanks();
+  }
+
+  @AuditLogMeta({
+    action: AuditType.USER,
+    description: 'User retrieved categories',
+    severity: AuditSeverity.INFO,
+  })
+  @ApiQuery({
+    name: 'module',
+    required: false,
+    type: String,
+    enum: CategoryEntityModules,
+  } as any)
+  @Get('categories/public')
+  async getCategories(@Query('module') module?: EntityModule) {
+    return this.shareablesService.getCategories(
+      CategoryEntityModules.includes(module) ? module : undefined,
+    );
   }
 }

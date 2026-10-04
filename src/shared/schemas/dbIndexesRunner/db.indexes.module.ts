@@ -9,6 +9,8 @@ import {
   FileModel,
   Business,
   BusinessModel,
+  Category,
+  CategoryModel,
   User,
   UserModel,
 } from '../index';
@@ -32,6 +34,8 @@ export class DbIndexesModule {
     private readonly fileModel: FileModel,
     @Inject(Business.name)
     private readonly businessModel: BusinessModel,
+    @Inject(Category.name)
+    private readonly categoryModel: CategoryModel,
   ) {}
 
   async runIndexes() {
@@ -41,6 +45,7 @@ export class DbIndexesModule {
       this.auditLogModel.syncIndexes(),
       this.fileModel.syncIndexes(),
       this.businessModel.syncIndexes(),
+      this.categoryModel.syncIndexes(),
     ] as any);
   }
 }

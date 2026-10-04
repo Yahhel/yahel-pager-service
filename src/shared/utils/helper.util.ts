@@ -397,6 +397,14 @@ export const stripEmptyFields = (obj: any) => {
   if (Array.isArray(obj)) {
     return obj.map((item) => stripEmptyFields(item));
   } else if (obj !== null && typeof obj === 'object') {
+    const proto = Object.getPrototypeOf(obj);
+    const isPlainObject = proto === Object.prototype || proto === null;
+    if (!isPlainObject) {
+      // Not a plain object literal (e.g. Types.ObjectId, Date, Buffer) —
+      // recursing via Object.keys() would destructure it into a plain
+      // object and lose its type, so keep it as-is.
+      return obj;
+    }
     return Object.keys(obj).reduce((acc, key) => {
       const value = obj[key];
 

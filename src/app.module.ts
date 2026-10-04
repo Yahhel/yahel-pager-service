@@ -16,6 +16,7 @@ import { ProductsModule } from './products';
 import { FileModule } from './shared/file/file.module';
 import { BusinessesModule } from './business/businesses.module';
 import { ShareablesModule } from '@shared/sharebles';
+import { CategoriesModule } from './category/categories.module';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { ShareablesModule } from '@shared/sharebles';
     FileModule,
     BusinessesModule,
     ShareablesModule,
+    CategoriesModule,
     ProductsModule,
   ],
   controllers: [AppController],

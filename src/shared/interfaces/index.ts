@@ -17,3 +17,4 @@ export * from './storage.type';
 export * from './onboarding.type';
 export * from './business.type';
 export * from './paystack.type';
+export * from './category.type';
